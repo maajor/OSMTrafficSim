@@ -42,6 +42,7 @@ namespace OSMTrafficSim
         public string type;
         public GeoProperty properties;
         public GeoGeometry geometry;
+        public string id;
     }
     [System.Serializable]
     public class GeoProperty

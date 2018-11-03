@@ -1,8 +1,12 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using Unity.Entities;
+using Unity.Mathematics;
 using UnityEngine;
 using Unity.Collections;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace OSMTrafficSim
 {
@@ -11,20 +15,30 @@ namespace OSMTrafficSim
     public struct RoadNode : IComponentData
     {
         public int NodeId;
-        public int[] ConnectionSegsIds;
-        public int[] ConnectionGroups;
-        public Vector2 Position;
+        public int2x3 ConnectionSegIds;//max 3 mutex traffic light
+        public float3 Position;
+
+        public RoadNode(int id)
+        {
+            NodeId = id;
+            ConnectionSegIds = -1;
+            Position = 0;
+        }
     }
 
     [System.Serializable]
     public struct RoadSegment : IComponentData
     {
         public int SegmentId;
-        public int[] EndNodeIds;
+        public int StartNodeId;
+        public int EndNodeId;
+        public float3 Direction;
+        public float Length;
         public float LaneWidth;
         public int LaneNumber;
-        public bool IsOneWay;
-        public string Name;
+        public int IsOneWay;
+        public int Level;//1 primary, 2 secondary, 3 others
+        public int NameHashcode;
     }
 
     public class RoadGraph : MonoBehaviour
@@ -39,9 +53,24 @@ namespace OSMTrafficSim
             }
         }
 
+        public bool bDebug;
+        public bool bDeepDebug;
         public Vector2 RefCenter;
-        public List<RoadNode> RoadNodesTemp;
-        public List<RoadSegment> RoadSegmentsTemp;
+        
+        public List<RoadSegment> RoadSegments
+        {
+            get { return roadSegments; }
+        }
+        public List<RoadNode> RoadNodes
+        {
+            get { return roadNodes; }
+        }
+        //[HideInInspector]
+        [SerializeField]
+        private List<RoadSegment> roadSegments;
+        //[HideInInspector]
+        [SerializeField]
+        private List<RoadNode> roadNodes;
 
         public void Awake()
         {
@@ -51,12 +80,15 @@ namespace OSMTrafficSim
         public void Init(GeoJson rawData) {
             List<List<int>> nodeConnects = new List<List<int>>();
             Dictionary<Vector2Int, RoadNode> nodeDic = new Dictionary<Vector2Int, RoadNode>();
-            RoadNodesTemp = new List<RoadNode>();
-            RoadSegmentsTemp = new List<RoadSegment>();
+            roadNodes = new List<RoadNode>();
+            roadSegments = new List<RoadSegment>();
+            //iterate over each road
             foreach (var feature in rawData.features)
             {
                 List<RoadNode> nodes = new List<RoadNode>();
+                HashSet< Vector2Int> uniqueNodes = new HashSet<Vector2Int>();
                 int len = feature.geometry.coordinates.Length;
+                //add nodes
                 for (int i = 0; i < len / 2; i++)
                 {
                     Vector2 latlongPos = new Vector2(
@@ -64,77 +96,177 @@ namespace OSMTrafficSim
                         feature.geometry.coordinates[i, 1]);
                     Vector2 worldPos = Conversion.GeoToWorldPosition(latlongPos, RefCenter);
                     Vector2Int intpos = new Vector2Int((int)worldPos.x, (int)worldPos.y);
-                    RoadNode node;
-                    if (!nodeDic.TryGetValue(intpos, out node))
+                    if (!uniqueNodes.Contains(intpos))
                     {
-                        node = new RoadNode();
-                        node.NodeId = RoadNodesTemp.Count;
-                        node.Position = worldPos;
-                        nodeDic.Add(intpos, node);
-                        RoadNodesTemp.Add(node);
-                        nodeConnects.Add(new List<int>());
+                        uniqueNodes.Add(intpos);
                     }
                     else
                     {
-                        Debug.Log("alreadyexist");
+                        continue;
                     }
-
+                    RoadNode node;
+                    if (!nodeDic.TryGetValue(intpos, out node))
+                    {
+                        node = new RoadNode(RoadNodes.Count);
+                        node.Position = new float3(){ x = worldPos.x, y = 0, z = worldPos.y};
+                        nodeDic.Add(intpos, node);
+                        RoadNodes.Add(node);
+                        nodeConnects.Add(new List<int>());
+                    }
+                    /*else
+                    {
+                        Debug.Log("alreadyexist");
+                    }*/
                     nodes.Add(node);
                 }
+                //add segments
                 for (int i = 0; i < nodes.Count - 1; i++)
                 {
                     RoadSegment seg = new RoadSegment();
-
-                    seg.EndNodeIds = new int[2] { nodes[i].NodeId, nodes[i + 1].NodeId};
-                    seg.IsOneWay = feature.properties.oneway == "yes";
+                    seg.StartNodeId = nodes[i].NodeId;
+                    seg.EndNodeId = nodes[i + 1].NodeId;
+                    float3 dir = nodes[i + 1].Position - nodes[i].Position;
+                    seg.Length = Vector3.Magnitude(dir);
+                    dir = Vector3.Normalize(dir);
+                    seg.Direction = dir;
+                    seg.IsOneWay = feature.properties.oneway == "yes" ? 1 : 0;
                     seg.LaneWidth = 3.5f;
-                    seg.LaneNumber = 2;
-                    seg.SegmentId = RoadSegmentsTemp.Count;
-                    RoadSegmentsTemp.Add(seg);
+                    seg.LaneNumber = feature.properties.lanes == null ? 1 : int.Parse(feature.properties.lanes);
+                    seg.Level = GetRoadLevel(feature.properties.highway);
+                    seg.SegmentId = roadSegments.Count;
+                    seg.NameHashcode = feature.id == null ? 0 : feature.id.GetHashCode();
+                    roadSegments.Add(seg);
                     nodeConnects[nodes[i].NodeId].Add(seg.SegmentId);
                     nodeConnects[nodes[i + 1].NodeId].Add(seg.SegmentId);
                 }
             }
 
-            for (int i = 0; i < RoadNodesTemp.Count; i++) {
-                RoadNode nd = RoadNodesTemp[i];
-                nd.ConnectionSegsIds = nodeConnects[i].ToArray();
-                RoadNodesTemp[i] = nd;
-            }
-            
-            //RoadNodes.CopyFrom(RoadNodesTemp.ToArray());
-            //RoadSegments.CopyFrom(RoadSegmentsTemp.ToArray());
-        }
-        //private NativeArray<RoadNode> RoadNodes;
-        //private NativeArray<RoadSegment> RoadSegments;
+            //fill Nodes' ConnectionSegIds and ConnectionGroups field
+            for (int i = 0; i < RoadNodes.Count; i++) {
+                RoadNode nd = RoadNodes[i];
+                //calculate ConnectionGroups field
+                int namehash = roadSegments[nodeConnects[i][0]].NameHashcode;
+                int count = 0;
+                int groupid = 0;
+                int2 roadPairSegId = -1;
+                foreach (var segId in nodeConnects[i]) {
+                    if (roadSegments[segId].NameHashcode == namehash)
+                    {
+                        if (count == 0) roadPairSegId.x = segId;
+                        else roadPairSegId.y = segId;
+                        count++;
+                    }
+                    else
+                    {
+                        if (groupid < 3) nd.ConnectionSegIds[groupid] = roadPairSegId;
+                        roadPairSegId = -1;
+                        roadPairSegId.x = segId;
+                        count = 1;
+                        groupid++;
+                        namehash = roadSegments[segId].NameHashcode;
+                    }
+                }
+                if (groupid < 3) nd.ConnectionSegIds[groupid] = roadPairSegId;
 
+                //prevent triple traffic light on crossroad
+                if (nd.ConnectionSegIds[1].x != -1 && nd.ConnectionSegIds[1].y == -1 &&
+                    nd.ConnectionSegIds[2].x != -1 && nd.ConnectionSegIds[2].y == -1)
+                {
+                    nd.ConnectionSegIds[1] = new int2(){ x = nd.ConnectionSegIds[1].x , y = nd.ConnectionSegIds[2].x };
+                    nd.ConnectionSegIds[2] = -1;
+                }
+
+                RoadNodes[i] = nd;
+            }
+        }
+
+        public void InitRandom()
+        {
+            RandomGen = new Unity.Mathematics.Random();
+            RandomGen.InitState((uint)System.DateTime.Now.Millisecond);
+        }
+
+        public void GetNextRandomPosition(out float3 position, out quaternion rotation, out float3 direction, out float speed, out int currentid, out float lerpPos, out float dir)
+        {
+            currentid = RandomGen.NextInt(0, RoadSegments.Count);
+            int fromid = RoadSegments[currentid].StartNodeId;
+            int toid = RoadSegments[currentid].EndNodeId;
+            lerpPos = RandomGen.NextFloat(0, 1);
+            position = RoadNodes[toid].Position * lerpPos +
+                       RoadNodes[fromid].Position * (1.0f - lerpPos);
+            Vector3 roadVec = RoadSegments[currentid].Direction;
+            dir = RoadSegments[currentid].IsOneWay == 1 ? 1.0f : (RandomGen.NextInt(0, 1) - 0.5f) * 2.0f;
+            roadVec *= dir;
+            Quaternion facing = Quaternion.LookRotation(roadVec, Vector3.up);
+            float2 speedRange = GetSpeedRange(RoadSegments[currentid].Level);
+            rotation = facing;
+            speed = RandomGen.NextFloat(speedRange.x, speedRange.y);
+            speed /= 3.6f;//KM/h to m/s;
+            direction = roadVec.normalized;
+        }
+        //public ComponentDataArray<VehicleData> VehicleData;
+#if UNITY_EDITOR
         public void OnDrawGizmos()
         {
+            if (!bDebug) return;
             Gizmos.color = Color.red;
-            foreach (var node in RoadNodesTemp) {
-                Gizmos.DrawWireSphere(
-                    new Vector3(
-                        node.Position.x,
-                        0,
-                        node.Position.y
-                        ), 1.0f);
+            foreach (var node in RoadNodes) {
+                Gizmos.DrawWireSphere(node.Position, 3.0f);
+                Handles.color = Color.red;
+                if(bDeepDebug) Handles.Label(node.Position,node.NodeId.ToString());
             }
-            foreach (var segs in RoadSegmentsTemp)
+            Gizmos.color = Color.cyan;
+            foreach (var seg in RoadSegments)
             {
-                Vector3 pos1 = new Vector3(
-                        RoadNodesTemp[segs.EndNodeIds[0]].Position.x,
-                        0,
-                         RoadNodesTemp[segs.EndNodeIds[0]].Position.y
-                        );
-                Vector3 pos2 = new Vector3(
-                        RoadNodesTemp[segs.EndNodeIds[1]].Position.x,
-                        0,
-                         RoadNodesTemp[segs.EndNodeIds[1]].Position.y
-                        );
-                Gizmos.DrawLine(
-                    pos1, pos2);
+                Vector3 pos1 = RoadNodes[seg.StartNodeId].Position;
+                Vector3 pos2 = RoadNodes[seg.EndNodeId].Position;
+                Gizmos.DrawLine(pos1, pos2);
+                Vector3 mid = (pos1 + pos2) / 2.0f;
+                Handles.color = Color.cyan;
+                if (bDeepDebug) Handles.Label(mid, seg.SegmentId.ToString());
+            }
+            
+            /*Gizmos.color = Color.magenta;
+            for (int i = 0; i < VehicleData.Length; i++)
+            {
+                Handles.Label(VehicleData[i].Position, string.Format("Seg{0} Pos{3} Dir{4}", 
+                    VehicleData[i].SegId,
+                    VehicleData[i].CurrentSegPos,
+                    VehicleData[i].Direction
+                    ));
+                Gizmos.DrawRay(VehicleData[i].Position, VehicleData[i].Forward * 10);
+            }*/
+        }
+#endif
+
+        private int GetRoadLevel(string typename)
+        {
+            switch (typename)
+            {
+                case ("primary"):
+                    return 1;
+                case ("secondary"):
+                    return 2;
+                default:
+                    return 3;
             }
         }
+
+        private float2 GetSpeedRange(int roadLevel)
+        {
+            switch (roadLevel)
+            {
+                case (1):
+                    return new float2(){x = 60, y = 80};
+                case (2):
+                    return new float2() { x = 40, y = 60 };
+                default:
+                    return new float2() { x = 20, y = 40 };
+            }
+        }
+
+        [HideInInspector]
+        public Unity.Mathematics.Random RandomGen;
 
     }
 }
