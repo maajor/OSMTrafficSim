@@ -64,8 +64,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_SerializedData:
+    Weight: 0.5
+    ColliderCenter: {x: 0, y: 1.5, z: 0}
+    ColliderSize: {x: 3, y: 3, z: 15}
     renderer:
-      mesh: {fileID: 4300000, guid: 85a4570d0040ade4e89f5049b5a582af, type: 3}
+      mesh: {fileID: 4300002, guid: 85a4570d0040ade4e89f5049b5a582af, type: 3}
       material: {fileID: 2100000, guid: 018214e09058c554dab4cc6ea6d894f0, type: 2}
       subMesh: 0
       castShadows: 0

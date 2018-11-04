@@ -12,20 +12,13 @@ namespace OSMTrafficSim
     [Serializable]
     public struct VehicleTemplate : ISharedComponentData
     {
+        public float Weight;
+        public Vector3 ColliderCenter;
+        public Vector3 ColliderSize;
         public MeshInstanceRenderer renderer;
-
-        public VehicleTemplate(MeshInstanceRenderer renderer)
-        {
-            this.renderer = renderer;
-        }
     }
 
     public class VehicleTemplateComponent : SharedComponentDataWrapper<VehicleTemplate>
     {
-
-        public VehicleTemplateComponent(MeshInstanceRenderer renderer)
-        {
-            Value = new VehicleTemplate(renderer);
-        }
     }
 }

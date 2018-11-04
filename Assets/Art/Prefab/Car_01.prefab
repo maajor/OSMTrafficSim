@@ -20,7 +20,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4396174704192420}
   - component: {fileID: 114336707646143188}
-  - component: {fileID: 114406022072667754}
+  - component: {fileID: 114167356928802976}
   m_Layer: 0
   m_Name: Car_01
   m_TagString: Untagged
@@ -41,18 +41,7 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &114336707646143188
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 100100000}
-  m_GameObject: {fileID: 1829282004433002}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5bf10cdea1344482e91a4f2b58506b77, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!114 &114406022072667754
+--- !u!114 &114167356928802976
 MonoBehaviour:
   m_ObjectHideFlags: 1
   m_CorrespondingSourceObject: {fileID: 0}
@@ -64,9 +53,23 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_SerializedData:
+    Weight: 1
+    ColliderCenter: {x: 0, y: 0.75, z: 0}
+    ColliderSize: {x: 2, y: 1.5, z: 8}
     renderer:
-      mesh: {fileID: 4300000, guid: 1d2424eb9f08baf4ca8c57395b4b9c55, type: 3}
+      mesh: {fileID: 4300002, guid: 1d2424eb9f08baf4ca8c57395b4b9c55, type: 3}
       material: {fileID: 2100000, guid: 018214e09058c554dab4cc6ea6d894f0, type: 2}
       subMesh: 0
       castShadows: 0
       receiveShadows: 0
+--- !u!114 &114336707646143188
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 1829282004433002}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5bf10cdea1344482e91a4f2b58506b77, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

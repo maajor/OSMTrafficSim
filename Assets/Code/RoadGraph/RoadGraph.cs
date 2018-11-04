@@ -33,11 +33,13 @@ namespace OSMTrafficSim
         public int StartNodeId;
         public int EndNodeId;
         public float3 Direction;
+        public float3 RightDirection;
         public float Length;
         public float LaneWidth;
         public int LaneNumber;
         public int IsOneWay;
         public int Level;//1 primary, 2 secondary, 3 others
+        public float MaxSpeed;
         public int NameHashcode;
     }
 
@@ -65,10 +67,10 @@ namespace OSMTrafficSim
         {
             get { return roadNodes; }
         }
-        //[HideInInspector]
+        [HideInInspector]
         [SerializeField]
         private List<RoadSegment> roadSegments;
-        //[HideInInspector]
+        [HideInInspector]
         [SerializeField]
         private List<RoadNode> roadNodes;
 
@@ -129,11 +131,14 @@ namespace OSMTrafficSim
                     seg.Length = Vector3.Magnitude(dir);
                     dir = Vector3.Normalize(dir);
                     seg.Direction = dir;
+                    seg.RightDirection = math.cross(dir, new float3(0, 1, 0));
                     seg.IsOneWay = feature.properties.oneway == "yes" ? 1 : 0;
-                    seg.LaneWidth = 3.5f;
                     seg.LaneNumber = feature.properties.lanes == null ? 1 : int.Parse(feature.properties.lanes);
                     seg.Level = GetRoadLevel(feature.properties.highway);
+                    seg.LaneWidth = GetLaneWidth(seg.Level);
                     seg.SegmentId = roadSegments.Count;
+                    float2 speedRange = GetSpeedRange(seg.Level);
+                    seg.MaxSpeed = speedRange.y / 3.6f;
                     seg.NameHashcode = feature.id == null ? 0 : feature.id.GetHashCode();
                     roadSegments.Add(seg);
                     nodeConnects[nodes[i].NodeId].Add(seg.SegmentId);
@@ -186,26 +191,42 @@ namespace OSMTrafficSim
             RandomGen.InitState((uint)System.DateTime.Now.Millisecond);
         }
 
-        public void GetNextRandomPosition(out float3 position, out quaternion rotation, out float3 direction, out float speed, out int currentid, out float lerpPos, out float dir)
+        public void GetNextRandomPosition(out float3 position, out quaternion rotation, out float3 direction, out float speed, 
+            out int currentid, out float lerpPos, out float dir, out int lane)
         {
             currentid = RandomGen.NextInt(0, RoadSegments.Count);
             int fromid = RoadSegments[currentid].StartNodeId;
             int toid = RoadSegments[currentid].EndNodeId;
+
+            float laneWidth = RoadSegments[currentid].LaneWidth;
+            int laneCount = RoadSegments[currentid].LaneNumber;
+            lane = RandomGen.NextInt(0, laneCount);
+
+            Vector3 roadVec = RoadSegments[currentid].Direction;
+            dir = RoadSegments[currentid].IsOneWay == 1 ? 1.0f : (RandomGen.NextInt(0, 2) - 0.5f) * 2.0f;
+            roadVec *= dir;
+            direction = roadVec.normalized;
+
+            float3 offsetDir = math.cross(direction, new float3() {x = 0, y = 1, z = 0});
+            float offset = (lane + 0.5f) * laneWidth;
+            if (RoadSegments[currentid].IsOneWay == 1)
+            {
+                offset -= (laneCount / 2.0f) * laneWidth;
+            }
             lerpPos = RandomGen.NextFloat(0, 1);
             position = RoadNodes[toid].Position * lerpPos +
                        RoadNodes[fromid].Position * (1.0f - lerpPos);
-            Vector3 roadVec = RoadSegments[currentid].Direction;
-            dir = RoadSegments[currentid].IsOneWay == 1 ? 1.0f : (RandomGen.NextInt(0, 1) - 0.5f) * 2.0f;
-            roadVec *= dir;
+            position += offsetDir * offset;
+
             Quaternion facing = Quaternion.LookRotation(roadVec, Vector3.up);
-            float2 speedRange = GetSpeedRange(RoadSegments[currentid].Level);
             rotation = facing;
+
+            float2 speedRange = GetSpeedRange(RoadSegments[currentid].Level);
             speed = RandomGen.NextFloat(speedRange.x, speedRange.y);
-            speed /= 3.6f;//KM/h to m/s;
-            direction = roadVec.normalized;
+            speed /= 3.6f;//km/h to m/s;
         }
-        //public ComponentDataArray<VehicleData> VehicleData;
 #if UNITY_EDITOR
+        public ComponentDataArray<VehicleData> VehicleData;
         public void OnDrawGizmos()
         {
             if (!bDebug) return;
@@ -215,27 +236,59 @@ namespace OSMTrafficSim
                 Handles.color = Color.red;
                 if(bDeepDebug) Handles.Label(node.Position,node.NodeId.ToString());
             }
-            Gizmos.color = Color.cyan;
             foreach (var seg in RoadSegments)
             {
                 Vector3 pos1 = RoadNodes[seg.StartNodeId].Position;
                 Vector3 pos2 = RoadNodes[seg.EndNodeId].Position;
+                Gizmos.color = seg.IsOneWay == 1 ? Color.cyan : Color.magenta;
                 Gizmos.DrawLine(pos1, pos2);
                 Vector3 mid = (pos1 + pos2) / 2.0f;
                 Handles.color = Color.cyan;
-                if (bDeepDebug) Handles.Label(mid, seg.SegmentId.ToString());
+                if (bDeepDebug) Handles.Label(mid, string.Format("num{0}, speed{1}",
+                    seg.SegmentId,seg.MaxSpeed
+                    ));
             }
-            
             /*Gizmos.color = Color.magenta;
             for (int i = 0; i < VehicleData.Length; i++)
             {
-                Handles.Label(VehicleData[i].Position, string.Format("Seg{0} Pos{3} Dir{4}", 
-                    VehicleData[i].SegId,
+                Handles.Label(VehicleData[i].Position, string.Format("Speed{0} Pos{1} Dir{2}", 
+                    VehicleData[i].Speed,
                     VehicleData[i].CurrentSegPos,
                     VehicleData[i].Direction
                     ));
                 Gizmos.DrawRay(VehicleData[i].Position, VehicleData[i].Forward * 10);
             }*/
+        }
+
+        [MenuItem("OSMTrafficSim/GenPointLights")]
+        private static void GenLights()
+        {
+            float div = 50.0f;
+            GameObject light = new GameObject("light");
+            Light lt = light.AddComponent<Light>();
+            lt.type = LightType.Point;
+            lt.lightmapBakeType = LightmapBakeType.Baked;
+            lt.range = 20.0f;
+            lt.intensity = 5.0f;
+            foreach (var seg in Instance.RoadSegments)
+            {
+                if (seg.Level == 3) continue;
+                float roadlen = seg.Length;
+                int lightcount =(int)( roadlen / div);
+                if (lightcount > 0)
+                {
+                    Vector3 direction = Vector3.Normalize(seg.Direction);
+                    Vector3 start = Instance.RoadNodes[seg.StartNodeId].Position;
+                    for (int i = 0; i < lightcount; i++)
+                    {
+                        float dist = (i + 0.5f) * div;
+                        Vector3 newpos = start + direction * dist;
+                        newpos.y = 10.0f;
+                        Instantiate(light, newpos, Quaternion.identity);
+                    }
+
+                }
+            }
         }
 #endif
 
@@ -249,6 +302,19 @@ namespace OSMTrafficSim
                     return 2;
                 default:
                     return 3;
+            }
+        }
+
+        private float GetLaneWidth(int level)
+        {
+            switch (level)
+            {
+                case (1):
+                    return 4;
+                case (2):
+                    return 3.75f;
+                default:
+                    return 3.5f;
             }
         }
 
