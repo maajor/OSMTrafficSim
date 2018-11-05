@@ -251,8 +251,8 @@ namespace OSMTrafficSim
             /*Gizmos.color = Color.magenta;
             for (int i = 0; i < VehicleData.Length; i++)
             {
-                Handles.Label(VehicleData[i].Position, string.Format("Speed{0} Pos{1} Dir{2}", 
-                    VehicleData[i].Speed,
+                Handles.Label(VehicleData[i].Position, string.Format("HitDist{0} Pos{1} Dir{2}", 
+                    VehicleData[i].HitDistAhead,
                     VehicleData[i].CurrentSegPos,
                     VehicleData[i].Direction
                     ));
