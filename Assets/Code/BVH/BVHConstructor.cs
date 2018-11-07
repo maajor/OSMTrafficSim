@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Burst;
@@ -114,22 +115,29 @@ namespace OSMTrafficSim
                 NumObjects = AABB.Length
             };
             deps = constructBVHInternal.Schedule( AABB.Length - 1, 32, deps);
-            
-            
+
+            NativeArray<int> locks = new NativeArray<int>(AABB.Length - 1, Allocator.TempJob);
             var updateAABB = new UpdateAABB()
             {
-                BVHArray = BVHArray
+                BVHArray = BVHArray,
+                locks = locks
             };
+
+            /*for (int i = 0; i < AABB.Length; i++)
+            {
+                updateAABB.Execute(i);
+            }*/
+
             deps = updateAABB.Schedule(AABB.Length, 32, deps);
 
-            /*deps.Complete();
-            for (int i = 0 ; i < BVHArray.Length / 2; i++)
+            deps.Complete();
+            for (int i = 0; i < BVHArray.Length - 1; i++)
             {
                 if (BVHArray[i].IsValid > 0)
                 {
                     DebugUtils.DrawAABB(BVHArray[i].aabb, UnityEngine.Random.ColorHSV());
-                }
-            }*/
+               }
+            }
             return deps;
         }
 
@@ -271,6 +279,7 @@ namespace OSMTrafficSim
                 BVHNode bvhNode = BVHArray[i];
                 bvhNode.IsValid = 0;
                 bvhNode.ParentNodeIndex = -1;
+                bvhNode.aabb = new AABB();
                 BVHArray[i] = bvhNode;
             }
         }
@@ -440,6 +449,10 @@ namespace OSMTrafficSim
         {
             [NativeDisableParallelForRestriction]
             public NativeArray<BVHNode> BVHArray;
+            
+            [DeallocateOnJobCompletion]
+            [NativeDisableParallelForRestriction]
+            public NativeArray<int> locks;
 
             public void Execute(int i)
             {
@@ -449,22 +462,29 @@ namespace OSMTrafficSim
                 int parentIndex = BVHArray[leafNodeId].ParentNodeIndex;
                 while (parentIndex != -1)
                 {
+                    //prevent data race, hold atomic value
+                    while (locks[parentIndex] == 1) { }
+
+                    locks[parentIndex] = 1;
                     BVHNode parent = BVHArray[parentIndex];
                     if (parent.IsValid == 0)
                     {
                         parent.aabb = leafNodeAABB;
                         parent.IsValid = 1;
                         BVHArray[parentIndex] = parent;
-                        return;
+                        locks[parentIndex] = 0;
+                        break;
                     }
                     else
                     {
                         parent.aabb = Utils.GetEncompassingAABB(parent.aabb, leafNodeAABB);
                     }
                     BVHArray[parentIndex] = parent;
+                    locks[parentIndex] = 0;
                     leafNodeAABB = parent.aabb;
                     parentIndex = parent.ParentNodeIndex;
                 }
+
             }
         }
     }
