@@ -7,31 +7,14 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using UnityEngine;
+using UnityEngine.Assertions;
 
 namespace OSMTrafficSim
 {
-    [Serializable]
-    public struct AABB : IComponentData
-    {
-        public float3 Min;
-        public float3 Max;
-    }
-
-    public class AABBComponent : ComponentDataWrapper<AABB> {}
-
-    public struct BVHNode
-    {
-        public AABB aabb;
-        public int EntityId;
-        public int LeftNodeIndex;
-        public int RightNodeIndex;
-        public int ParentNodeIndex;
-        public byte IsValid;
-    }
-
-    public class BVHConstructor
+    public unsafe class BVHConstructor
     {
 
         public BVHConstructor(int capacity)
@@ -47,11 +30,17 @@ namespace OSMTrafficSim
 
             int requiredBVHLength = (Utils.GetNextHighestPowerOf2(Utils.ceil_pow2(capacity) + 1)) - 1;
 
+            //locks = (long*)UnsafeUtility.Malloc(
+            //    requiredBVHLength * sizeof(int), sizeof(int), Allocator.Persistent);
             BVHArray = new NativeArray<BVHNode>(requiredBVHLength, Allocator.Persistent);
+            parentIndex = new NativeArray<int>(requiredBVHLength, Allocator.Persistent);
+            bDebug = true;
         }
 
         public NativeArray<BVHNode> BVHArray;
 
+        public bool bDebug;
+        //private long* locks;
         private int _capacity;
         private NativeArray<int> mortonCodes;
         private NativeArray<int> mortonCodesTemp;
@@ -60,10 +49,10 @@ namespace OSMTrafficSim
         private NativeArray<int> radixSortBitValues;
         private NativeArray<int> radixSortOffsets;
         private NativeArray<int> sortResultsArrayIsA;
+        private NativeArray<int> parentIndex;
 
         private AABB GetBoundingBox(ComponentDataArray<AABB> AABB)
         {
-            Bounds bd = new Bounds();
             AABB result = AABB[0];
             for (int i = 0; i < _capacity; i++)
             {
@@ -76,14 +65,16 @@ namespace OSMTrafficSim
 
         public JobHandle Calculate(JobHandle deps, ComponentDataArray<AABB> AABB)
         {
+            //UnityEngine.Profiling.Profiler.BeginSample("update bbx");
             var bound = GetBoundingBox(AABB);
-
+            //UnityEngine.Profiling.Profiler.EndSample();
+            //UnityEngine.Profiling.Profiler.BeginSample("update bvh");
             var resetBVH = new ResetBVH()
             {
                 BVHArray = BVHArray,
             };
             deps = resetBVH.Schedule(BVHArray.Length, 32, deps);
-
+            
             var sortMortonCodes = new ComputeAndSortMortonCodes
             {
                 aabbs = AABB,
@@ -97,9 +88,7 @@ namespace OSMTrafficSim
                 Bound = bound
             };
             deps = sortMortonCodes.Schedule(deps);
-
             deps.Complete();
-
             var constructBVHChild = new ConstructBVHChildNodes()
             {
                 AABB = AABB,
@@ -108,36 +97,51 @@ namespace OSMTrafficSim
             };
             deps = constructBVHChild.Schedule(AABB.Length, 32, deps);
 
+            deps.Complete();
             var constructBVHInternal = new ConstructBVHInternalNodes()
             {
                 BVHArray = BVHArray,
                 mortonCodes = mortonCodes,
-                NumObjects = AABB.Length
+                NumObjects = AABB.Length,
+                ParentIndex = parentIndex
             };
             deps = constructBVHInternal.Schedule( AABB.Length - 1, 32, deps);
 
-            NativeArray<int> locks = new NativeArray<int>(AABB.Length - 1, Allocator.TempJob);
+            var updateParentIndex = new UpdateBVHParentIndex()
+            {
+                BVHArray = BVHArray,
+                ParentIndex = parentIndex
+            };
+            deps = updateParentIndex.Schedule(BVHArray.Length, 32, deps);
+            deps.Complete();
             var updateAABB = new UpdateAABB()
             {
                 BVHArray = BVHArray,
-                locks = locks
+                //locks = locks
             };
-
-            /*for (int i = 0; i < AABB.Length; i++)
+            for (int i = 0; i < AABB.Length; i++)
             {
-                updateAABB.Execute(i);
-            }*/
+                //updateAABB.Execute(i);
+            }
 
             deps = updateAABB.Schedule(AABB.Length, 32, deps);
-
-            deps.Complete();
-            for (int i = 0; i < BVHArray.Length - 1; i++)
+            //UnityEngine.Profiling.Profiler.EndSample();
+            if (bDebug)
+            {
+                deps.Complete();
+                //Debug.Assert(ValidateBVH(BVHArray));
+            }
+            /*for (int i = 0; i < BVHArray.Length - 1; i++)
             {
                 if (BVHArray[i].IsValid > 0)
                 {
-                    DebugUtils.DrawAABB(BVHArray[i].aabb, UnityEngine.Random.ColorHSV());
+                    //DebugUtils.DrawAABB(BVHArray[i].aabb, UnityEngine.Random.ColorHSV());
                }
-            }
+                if (BVHArray[i].IsValid  == 1)
+                {
+                   // Debug.Log("error at " + i);
+                }
+            }*/
             return deps;
         }
 
@@ -151,340 +155,88 @@ namespace OSMTrafficSim
             radixSortOffsets.Dispose();
             sortResultsArrayIsA.Dispose();
             BVHArray.Dispose();
+            parentIndex.Dispose();
         }
 
-
-        [BurstCompile]
-        struct ComputeAndSortMortonCodes : IJob
+        public bool ValidateBVH(NativeArray<BVHNode> BVHArray)
         {
-            [ReadOnly]
-            public ComponentDataArray<AABB> aabbs;
-            public NativeArray<int> mortonCodes;
-            public NativeArray<int> mortonCodesTemp;
-            public NativeArray<int> indexConverter;
-            public NativeArray<int> indexConverterTemp;
-            public NativeArray<int> radixSortBitValues;
-            public NativeArray<int> radixSortOffsets;
-            public NativeArray<int> sortResultsArrayIsA;
-
-            private int zeroesHistogramCounter;
-            private int onesHistogramCounter;
-            private int zeroesPrefixSum;
-            private int onesPrefixSum;
-
-            public AABB Bound;
-
-            public void Execute()
+            int[] used = new int[BVHArray.Length];
+            used[0] = 1;
+            Stack<int> nextnodes = new Stack<int>();
+            nextnodes.Push(0);
+            while (nextnodes.Count > 0)
             {
-                // Calculate all morton codes and init sorted index map
-                for (int i = 0; i < aabbs.Length; i++)
+                int val = nextnodes.Pop();
+                BVHNode thisnode = BVHArray[val];
+                if (thisnode.LeftNodeIndex >= 0 && val != thisnode.LeftNodeIndex)
                 {
-                    float3 center = Utils.GetAABBCenter(aabbs[i]);
-                    float3 normalized = (center - Bound.Min) / (Bound.Max - Bound.Min);
-                    mortonCodes[i] = Utils.CalculateMortonCode(normalized);
-
-                    indexConverter[i] = i;
-                    indexConverterTemp[i] = i;
+                    nextnodes.Push(thisnode.LeftNodeIndex);
+                    used[thisnode.LeftNodeIndex]++;
                 }
 
-                // Radix sort ascending
-                for (int bitPosition = 0; bitPosition < 31; bitPosition++)
+                if (thisnode.RightNodeIndex >= 0 && val != thisnode.RightNodeIndex)
                 {
-                    bool isEvenIteration = bitPosition % 2 == 0;
-
-                    // init histogram counts
-                    zeroesHistogramCounter = 0;
-                    onesHistogramCounter = 0;
-                    zeroesPrefixSum = 0;
-                    onesPrefixSum = 0;
-
-                    // Compute histograms and offsets
-                    for (int i = 0; i < aabbs.Length; i++)
-                    {
-                        int bitVal = 0;
-                        if (isEvenIteration)
-                        {
-                            bitVal = (mortonCodes[i] & (1 << bitPosition)) >> bitPosition;
-                        }
-                        else
-                        {
-                            bitVal = (mortonCodesTemp[i] & (1 << bitPosition)) >> bitPosition;
-                        }
-
-                        radixSortBitValues[i] = bitVal;
-
-                        if (bitVal == 0)
-                        {
-                            radixSortOffsets[i] = zeroesHistogramCounter;
-                            zeroesHistogramCounter += 1;
-                        }
-                        else
-                        {
-                            radixSortOffsets[i] = onesHistogramCounter;
-                            onesHistogramCounter += 1;
-                        }
-                    }
-
-                    // calc prefix sum from histogram
-                    zeroesPrefixSum = 0;
-                    onesPrefixSum = zeroesHistogramCounter;
-
-                    // Reorder array
-                    for (int i = 0; i < aabbs.Length; i++)
-                    {
-                        int newIndex = 0;
-                        if (radixSortBitValues[i] == 0)
-                        {
-                            newIndex = zeroesPrefixSum + radixSortOffsets[i];
-                        }
-                        else
-                        {
-                            newIndex = onesPrefixSum + radixSortOffsets[i];
-                        }
-
-                        if (isEvenIteration)
-                        {
-                            mortonCodesTemp[newIndex] = mortonCodes[i];
-                            indexConverterTemp[newIndex] = indexConverter[i];
-                        }
-                        else
-                        {
-                            mortonCodes[newIndex] = mortonCodesTemp[i];
-                            indexConverter[newIndex] = indexConverterTemp[i];
-                        }
-                    }
-
-                    sortResultsArrayIsA[0] = isEvenIteration ? 0 : 1; // it's the A array only for odd number iterations
+                    nextnodes.Push(thisnode.RightNodeIndex);
+                    used[thisnode.RightNodeIndex]++;
                 }
-
-                if (sortResultsArrayIsA[0] == 0)
-                {
-                    for (int i = 0; i < aabbs.Length; i++)
-                    {
-                        mortonCodes[i] = mortonCodesTemp[i];
-                        indexConverter[i] = indexConverterTemp[i];
-                    }
-                }
-
             }
+
+            bool result = true;
+            for (int i = 0; i < BVHArray.Length; i++)
+            {
+                if (used[i] > 1)
+                {
+                    Debug.Log("multiple " + i);
+                    result = false;
+                }
+            }
+
+            //DrawTree(BVHArray, 0, 0);
+            return result;
         }
 
-        [BurstCompile]
-        struct ResetBVH : IJobParallelFor
+        public void DrawTree(NativeArray<BVHNode> BVHArray, int id, int depth)
         {
-            public NativeArray<BVHNode> BVHArray;
-            
-            public void Execute(int i)
+            float maxdepth = math.log2(BVHArray.Length);
+            int halfl = BVHArray.Length  / 2;
+            int left = BVHArray[id].LeftNodeIndex;
+            int right = BVHArray[id].RightNodeIndex;
+            int leftnorm = left;
+            int rightnorm = right;
+            Vector3 rootP = new Vector3(-id, 0, depth * 30);
+            Vector3 leftP = new Vector3(-leftnorm, 0, (depth + 1) * 30 );
+            Vector3 rightP = new Vector3(-rightnorm, 0, (depth + 1) * 30 );
+            if (left >= halfl)
             {
-                BVHNode bvhNode = BVHArray[i];
-                bvhNode.IsValid = 0;
-                bvhNode.ParentNodeIndex = -1;
-                bvhNode.aabb = new AABB();
-                BVHArray[i] = bvhNode;
+                leftnorm = left - halfl;
+                leftP = new Vector3(-leftnorm, 0, maxdepth * 30 * 1.6f);
             }
-        }
-
-        [BurstCompile]
-        struct ConstructBVHChildNodes : IJobParallelFor
-        {
-            [ReadOnly] public ComponentDataArray<AABB> AABB;
-            [ReadOnly] public NativeArray<int> indexConverter;
-
-            [NativeDisableParallelForRestriction]
-            public NativeArray<BVHNode> BVHArray;
-
-            public void Execute(int i)
+            if (right >= halfl)
             {
-                int halfLength = BVHArray.Length / 2;
-                int entityindex = indexConverter[i];
-                int bvhIndex = halfLength + i;
-                BVHNode bvhNode = BVHArray[bvhIndex];
-                bvhNode.aabb = AABB[entityindex];
-                bvhNode.EntityId = entityindex;
-                bvhNode.RightNodeIndex = bvhIndex;
-                bvhNode.LeftNodeIndex = -1;
-                bvhNode.IsValid = 1;
-                BVHArray[bvhIndex] = bvhNode;
-            }
-        }
-
-
-        //https://devblogs.nvidia.com/thinking-parallel-part-iii-tree-construction-gpu/
-        [BurstCompile]
-        struct ConstructBVHInternalNodes : IJobParallelFor
-        {
-            [ReadOnly]
-            public NativeArray<int> mortonCodes;
-
-            [NativeDisableParallelForRestriction]
-            public NativeArray<BVHNode> BVHArray;
-
-            public int NumObjects;
-
-            int2 determineRange(int i)
-            {
-                int d = (clz_safe(i, i + 1) - clz_safe(i, i - 1)) > 0 ? 1 : -1;
-                int commonPrefixMin = clz_safe(i, i - d);
-                int l_max = 2;
-                while (clz_safe(i, i + d * l_max) > commonPrefixMin)
-                {
-                    l_max *= 2;
-                }
-                int l = 0;
-                int t = l_max;
-                do
-                {
-                    t = (t + 1) >> 1; // exponential decrease
-                    if (clz_safe(i, i + d * (l + t)) > commonPrefixMin)
-                    {
-                        l += t;
-                    }
-                }
-                while (t > 1);
-
-                int j = i + l * d;
-                int2 range = d > 0 ? new int2(i, j) : new int2(j, i);
-                return range;
+                rightnorm = right - halfl;
+                rightP = new Vector3(-rightnorm, 0, maxdepth * 30 * 1.6f);
             }
 
-            int findSplit(int first, int last)
+
+            if (left != -1)
             {
-                // Identical Morton codes => split the range in the middle.
-
-                int firstCode = mortonCodes[first];
-                int lastCode = mortonCodes[last];
-
-                if (firstCode == lastCode)
-                    return (first + last) >> 1;
-
-                // Calculate the number of highest bits that are the same
-                // for all objects, using the count-leading-zeros intrinsic.
-
-                int commonPrefix = clz(first, last);
-
-                // Use binary search to find where the next bit differs.
-                // Specifically, we are looking for the highest object that
-                // shares more than commonPrefix bits with the first one.
-
-                int split = first; // initial guess
-                int step = last - first;
-
-                do
-                {
-                    step = (step + 1) >> 1; // exponential decrease
-                    int newSplit = split + step; // proposed new position
-
-                    if (newSplit < last)
-                    {
-                        int splitPrefix = clz(first, newSplit);
-                        if (splitPrefix > commonPrefix)
-                            split = newSplit; // accept proposal
-                    }
-                }
-                while (step > 1);
-
-                return split;
-            }
-            
-            private int clz_safe(int idx, int idy)
-            {
-                math.countbits(0);
-                if (idy < 0 || idy > NumObjects - 1) return -1;
-                return clz(idx, idy);
+                Color col = BVHArray[left].IsValid == 2 ? Color.white : Color.red;
+                Debug.DrawLine(rootP, leftP, col);
             }
 
-            //https://stackoverflow.com/questions/10439242/count-leading-zeroes-in-an-int32
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            private int clz(int idx, int idy)
+            if (right != id)
             {
-                int value = mortonCodes[idx] ^ mortonCodes[idy];
-                //do the smearing
-                value |= value >> 1;
-                value |= value >> 2;
-                value |= value >> 4;
-                value |= value >> 8;
-                value |= value >> 16;
-                //count the ones
-                value -= ((value >> 1) & 0x55555555);
-                value = (((value >> 2) & 0x33333333) + (value & 0x33333333));
-                value = (((value >> 4) + value) & 0x0f0f0f0f);
-                value += (value >> 8);
-                value += (value >> 16);
-                return 32 - (value & 0x0000003f);
+                Color col = BVHArray[right].IsValid == 2 ? Color.white : Color.red;
+                Debug.DrawLine(rootP,rightP, col);
             }
-            
-            public void Execute(int index)
+
+            if (left != -1 && left != id)
             {
-                int halfBVHSize = BVHArray.Length / 2;
-                int2 range = determineRange(index);
-                int first = range.x;
-                int last = range.y;
-
-                // Determine where to split the range.
-
-                int split = findSplit(first, last);
-
-                int childAIndex = split == first ? split + halfBVHSize : split;
-                int childBIndex = (split + 1) == last ? split + halfBVHSize + 1 : split + 1;
-
-                BVHNode thisnode = BVHArray[index];
-                thisnode.RightNodeIndex = childBIndex;
-                thisnode.LeftNodeIndex = childAIndex;
-                thisnode.EntityId = -1;
-                thisnode.IsValid = 0;//No AABB Updated
-                BVHArray[index] = thisnode;
-
-                BVHNode leftnode = BVHArray[childAIndex];
-                leftnode.ParentNodeIndex = index;
-                BVHArray[childAIndex] = leftnode;
-
-                BVHNode rightnode = BVHArray[childBIndex];
-                rightnode.ParentNodeIndex = index;
-                BVHArray[childBIndex] = rightnode;
+                DrawTree(BVHArray, left, depth + 1);
             }
-        }
-
-        [BurstCompile]
-        struct UpdateAABB : IJobParallelFor
-        {
-            [NativeDisableParallelForRestriction]
-            public NativeArray<BVHNode> BVHArray;
-            
-            [DeallocateOnJobCompletion]
-            [NativeDisableParallelForRestriction]
-            public NativeArray<int> locks;
-
-            public void Execute(int i)
+            if (right != -1 && right != id)
             {
-                int halfLength = BVHArray.Length / 2;
-                int leafNodeId = halfLength + i;
-                AABB leafNodeAABB = BVHArray[leafNodeId].aabb;
-                int parentIndex = BVHArray[leafNodeId].ParentNodeIndex;
-                while (parentIndex != -1)
-                {
-                    //prevent data race, hold atomic value
-                    while (locks[parentIndex] == 1) { }
-
-                    locks[parentIndex] = 1;
-                    BVHNode parent = BVHArray[parentIndex];
-                    if (parent.IsValid == 0)
-                    {
-                        parent.aabb = leafNodeAABB;
-                        parent.IsValid = 1;
-                        BVHArray[parentIndex] = parent;
-                        locks[parentIndex] = 0;
-                        break;
-                    }
-                    else
-                    {
-                        parent.aabb = Utils.GetEncompassingAABB(parent.aabb, leafNodeAABB);
-                    }
-                    BVHArray[parentIndex] = parent;
-                    locks[parentIndex] = 0;
-                    leafNodeAABB = parent.aabb;
-                    parentIndex = parent.ParentNodeIndex;
-                }
-
+                DrawTree(BVHArray, right, depth + 1);
             }
         }
     }

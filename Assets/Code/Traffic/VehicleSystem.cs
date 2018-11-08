@@ -15,164 +15,172 @@ namespace OSMTrafficSim
 {
     public class VehicleSystem : JobComponentSystem
     {
-        ComponentGroup _template;
-        ComponentGroup _vehicleGroup;
+
+        struct VehicleGroup
+        {
+            public readonly int Length;
+            public EntityArray Entity;
+            public ComponentDataArray<VehicleData> VehicleData;
+            public ComponentDataArray<AABB> AABB;
+            public ComponentDataArray<Position> Position;
+            public ComponentDataArray<Rotation> Rotation;
+            public ComponentDataArray<HitResult> HitResult;
+        }
+        [Inject] VehicleGroup _vehicleGroup;
+        
         private int Capacity = 1024;
 
         #region ComponentSystem Interface
 
-        protected override void OnStartRunning() {
-            Debug.Log("Create Traffic System");
-            RoadGraph.Instance.InitRandom();
-
-            _vehicleGroup = GetComponentGroup(typeof(VehicleData), typeof(Position), typeof(Rotation), typeof(HitResult));
-            _template = GetComponentGroup(typeof(VehicleTemplate));
-
-            var iterator = _template.GetEntityArray();
-            var entities = new NativeArray<Entity>(iterator.Length, Allocator.Temp);
-            iterator.CopyTo(entities);
-            
+        protected override void OnCreateManager()
+        {
             Capacity = TrafficConfig.Instance.MaxVehicles;
-            List<uint> randSeeds= new List<uint>();
+
+            VehicleFactory.Init(EntityManager);
             for (var j = 0; j < Capacity; j++)
             {
-
-                float3 pos, forward; quaternion rot;
-                int currentid, lane;
-                float speed, lerpPos, dir;
-                RoadGraph.Instance.GetNextRandomPosition(out pos, out rot, out forward, out speed, out currentid, out lerpPos, out dir, out lane);
-                int rendererid = RoadGraph.Instance.RandomGen.NextInt(0, entities.Length);
-                VehicleTemplate vehicleTemplateData =
-                    EntityManager.GetSharedComponentData<VehicleTemplate>(entities[rendererid]);
-
-                //We need physics, so a hybrid way, instanciate gameobjects.
-                GameObject newgo = new GameObject("car", typeof(VehicleComponent), typeof(HitResultComponent), typeof(PositionComponent), typeof(RotationComponent), typeof(MeshInstanceRendererComponent));
-                newgo.hideFlags = HideFlags.HideInHierarchy;
-                newgo.layer = 9;
-                BoxCollider col = newgo.AddComponent<BoxCollider>();
-                col.size = vehicleTemplateData.ColliderSize;
-                col.center = vehicleTemplateData.ColliderCenter;
-                GameObjectEntity this_entity = newgo.GetComponent<GameObjectEntity>();
-                var car = this_entity.Entity;
-                
-                EntityManager.SetComponentData(car, new VehicleData((uint)j, currentid, speed, forward, lerpPos, dir, pos, lane, 50.0f));
-                EntityManager.SetComponentData(car, new Position() { Value = pos});
-                EntityManager.SetComponentData(car, new Rotation() { Value = rot});
-                EntityManager.SetComponentData(car, new HitResult() { HitResultPacked = 0, FrontHitDistance = 50.0f});
-                EntityManager.SetSharedComponentData(car, vehicleTemplateData.renderer);
-                
-                randSeeds.Add(RoadGraph.Instance.RandomGen.NextUInt(1000000));
+                VehicleFactory.AddVehicle(EntityManager);
             }
-            entities.Dispose();
 
             _roadSegments = new NativeArray<RoadSegment>(RoadGraph.Instance.RoadSegments.ToArray(), Allocator.Persistent);
             _roadNodes = new NativeArray<RoadNode>(RoadGraph.Instance.RoadNodes.ToArray(), Allocator.Persistent);
             _roadNodes.CopyFrom(RoadGraph.Instance.RoadNodes.ToArray());
             _roadSegments.CopyFrom(RoadGraph.Instance.RoadSegments.ToArray());
 
-            _randSeed = new NativeArray<uint>(randSeeds.ToArray(), Allocator.Persistent);
-            _randSeed.CopyFrom(randSeeds.ToArray());
+            var seeds = Utils.GetRandomSeed(Capacity);
+            _randSeed = new NativeArray<uint>(seeds, Allocator.Persistent);
+            _randSeed.CopyFrom(seeds);
+
+            _BVH = new BVHConstructor(Capacity);
         }
-        
         protected override void OnDestroyManager()
         {
             _roadNodes.Dispose();
             _roadSegments.Dispose();
             _randSeed.Dispose();
+            _BVH.Dispose();
         }
 
         protected override JobHandle OnUpdate(JobHandle deps)
         {
-            
-            _position = _vehicleGroup.GetComponentDataArray<Position>();
-            _rotation = _vehicleGroup.GetComponentDataArray<Rotation>();
-            _vehicleData = _vehicleGroup.GetComponentDataArray<VehicleData>();
-            _hitResult = _vehicleGroup.GetComponentDataArray<HitResult>();
+            deps = _BVH.Calculate(deps, _vehicleGroup.AABB);
 
-            //RoadGraph.Instance.VehicleData = _vehicleData;
-            
-            var commands = new NativeArray<RaycastCommand>(Capacity , Allocator.TempJob);
-            var hits = new NativeArray<RaycastHit>(Capacity , Allocator.TempJob);
-
-            // 1: Setup Raycast for environment sensing
-            var setupRaycastJob = new SetupRaycastJob
+            var senseJob = new SenseEnvironmentJob()
             {
-                Commands = commands,
-                VehicleData = _vehicleData,
+                VehicleData = _vehicleGroup.VehicleData,
+                BVHArray = _BVH.BVHArray,
+                HitResult = _vehicleGroup.HitResult,
+                HalfBVHArrayLength = _BVH.BVHArray.Length / 2,
             };
-            deps = setupRaycastJob.Schedule(Capacity, 64, deps);
 
-            // 2: Raycast jobs
-            deps = RaycastCommand.ScheduleBatch(commands, hits, 64, deps);
+            deps = senseJob.Schedule(Capacity, 64, deps);
+            deps.Complete();
+            //RoadGraph.Instance.VehicleData = _vehicleGroup.VehicleData;
+            //RoadGraph.Instance.hit = _vehicleGroup.HitResult;
+            DebugUtils.DebugConnection(_vehicleGroup.Position, _vehicleGroup.HitResult);
 
-            // 3: Transfer raycast result to vehicledata
-            var transferJob = new TransferRaycastResultJob
-            {
-                Commands = commands,
-                RaycastHits = hits,
-                HitResult = _hitResult
-            };
-            deps = transferJob.Schedule(Capacity, 64, deps);
-
-            // 4: move vehicle
             var vehicleMoveJob = new VehicleMoveJob()
             {
-                Positions = _position,
-                Rotations = _rotation,
-                VehicleData = _vehicleData,
+                Positions = _vehicleGroup.Position,
+                Rotations = _vehicleGroup.Rotation,
+                VehicleData = _vehicleGroup.VehicleData,
                 RoadNodes = _roadNodes,
                 RoadSegments = _roadSegments,
                 RandSeed = _randSeed,
-                HitResult = _hitResult
+                HitResult = _vehicleGroup.HitResult,
+                AABB = _vehicleGroup.AABB,
+                FrameSeed = (uint)Time.frameCount,
+                DeltaTime = Time.deltaTime
             };
-            vehicleMoveJob.FrameSeed = (uint) Time.frameCount;
-            vehicleMoveJob.DeltaTime = Time.deltaTime;
             deps = vehicleMoveJob.Schedule(Capacity, 64, deps);
 
             return deps;
         }
         #endregion
-        
+
         #region JobDefinitions
 
         [BurstCompile]
-        struct SetupRaycastJob : IJobParallelFor
+        struct SenseEnvironmentJob : IJobParallelFor
         {
-            [WriteOnly]
-            public NativeArray<RaycastCommand> Commands;
+            [ReadOnly]
+            [NativeDisableParallelForRestriction]
+            public NativeArray<BVHNode> BVHArray;
 
             [ReadOnly]
+            [NativeDisableParallelForRestriction]
             public ComponentDataArray<VehicleData> VehicleData;
 
-            public unsafe void Execute(int i)
-            {
-                Commands[i] = new RaycastCommand(VehicleData[i].Position + 5.0f * VehicleData[i].Forward, VehicleData[i].Forward, 30.0f);
-            }
-        }
-        
-        [BurstCompile]
-        struct TransferRaycastResultJob : IJobParallelFor
-        {
-            [DeallocateOnJobCompletion]
-            [ReadOnly]
-            public NativeArray<RaycastHit> RaycastHits;
-
-            [DeallocateOnJobCompletion]
-            [ReadOnly]
-            public NativeArray<RaycastCommand> Commands;
-            
-            [WriteOnly]
+            [NativeDisableParallelForRestriction]
             public ComponentDataArray<HitResult> HitResult;
+
+            public int HalfBVHArrayLength;
             
-            public unsafe void Execute(int i)
+
+            void QueryBVHNode(int comparedToNode, int leafNodeIndex, float3 forward, float3 position)
             {
-                int result = 0;
-                if (RaycastHits[i].distance < 30.0f && RaycastHits[i].distance> 1.0f) result |= 0x1;
-                
-                HitResult[i] = new HitResult { HitResultPacked = result, FrontHitDistance = RaycastHits[i].distance};
+                float3 comparecenter = (BVHArray[comparedToNode].aabb.Max + BVHArray[comparedToNode].aabb.Min) / 2.0f;
+                float3 toward = (comparecenter - position);
+                float manhantanDist = math.abs(toward.x) + math.abs(toward.z);
+                bool is_overlap = Utils.AABBToAABBOverlap(BVHArray[comparedToNode].aabb, BVHArray[leafNodeIndex].aabb);
+
+                if (BVHArray[comparedToNode].IsValid > 0 &&
+                    (is_overlap || manhantanDist < 200.0f))
+                {
+                    // leaf node
+                    if (BVHArray[comparedToNode].LeftNodeIndex < 0)
+                    {
+                        float distance = math.distance(comparecenter, position);
+                        toward /= distance;
+                        float angle = math.dot(toward, forward);
+                        float absangle = math.abs(angle);
+                        bool is_front = distance < 50.0f && angle > 0.999f;
+                        bool is_side = distance < 5.0f && absangle > 0.1f;
+                        int entityid = BVHArray[leafNodeIndex].EntityId;
+                        if (is_front)
+                        {
+                            if (distance < HitResult[entityid].FrontHitDistance)
+                            {
+                                HitResult[entityid] = new HitResult()
+                                {
+                                    FrontHitDistance = distance,
+                                    HitResultPacked =
+                                        (HitResult[entityid].HitResultPacked | 0x1),
+                                    FrontEntityId = BVHArray[comparedToNode].EntityId
+                                };
+                            }
+                        }
+
+                        if (is_side)
+                        {
+                            HitResult[entityid] = new HitResult()
+                            {
+                                FrontHitDistance = HitResult[entityid].FrontHitDistance,
+                                HitResultPacked =
+                                    (HitResult[entityid].HitResultPacked | (angle > 0 ? 0x2 : 0x4))
+                            };
+                        }
+                    }
+                    else
+                    {
+                        int left = BVHArray[comparedToNode].LeftNodeIndex;
+                        int right = BVHArray[comparedToNode].RightNodeIndex;
+                        if (left != leafNodeIndex) QueryBVHNode(left, leafNodeIndex, forward, position);
+                        if (right != leafNodeIndex)  QueryBVHNode(right, leafNodeIndex, forward, position);
+                    }
+                }
+            }
+
+            public void Execute(int i)
+            {
+                int entityindex = BVHArray[HalfBVHArrayLength + i].EntityId;
+                HitResult[entityindex] = new HitResult() { FrontHitDistance = 50.0f, HitResultPacked = 0 };
+                float3 forward = VehicleData[entityindex].Forward;
+                float3 center = VehicleData[entityindex].Position;
+                QueryBVHNode(0, HalfBVHArrayLength + i, forward, center);
             }
         }
-        
+
         [BurstCompile]
         struct VehicleMoveJob : IJobParallelFor
         {
@@ -200,6 +208,8 @@ namespace OSMTrafficSim
             [NativeDisableContainerSafetyRestriction]
             public ComponentDataArray<VehicleData> VehicleData;
 
+            public ComponentDataArray<AABB> AABB;
+
             public unsafe void Execute(int i)
             {
                 float3 currentPos = Positions[i].Value;
@@ -219,6 +229,12 @@ namespace OSMTrafficSim
                 {
                     newSpeed -= (distAheadDiff / 2.0f);
                 }
+
+                if (newDistanceAhead < 20.0f)
+                {
+                    newSpeed -= 0.5f;
+                }
+
                 newSpeed = newSpeed > maxSpeed ? maxSpeed : newSpeed;
                 newSpeed = newSpeed < 0 ? 0 : newSpeed;
                 #endregion
@@ -261,7 +277,12 @@ namespace OSMTrafficSim
                         nextLane,
                         newDistanceAhead
                         );
-                    
+
+                    AABB newAABB = AABB[i];
+                    newAABB.Max += currentDir * stepLength;
+                    newAABB.Min += currentDir * stepLength;
+                    AABB[i] = newAABB;
+
                     Positions[i] = new Position() { Value = nextPos };
                 }
                 //reach end node, find next seg
@@ -327,6 +348,12 @@ namespace OSMTrafficSim
                         nextLane,
                         newDistanceAhead
                     );
+
+                    AABB newAABB = AABB[i];
+                    newAABB.Max += (nextPos - currentPos);
+                    newAABB.Min += (nextPos - currentPos);
+                    AABB[i] = newAABB;
+
                     Positions[i] = new Position() { Value = nextPos };
                     Rotations[i] = new Rotation() { Value = newRot };
 
@@ -337,11 +364,8 @@ namespace OSMTrafficSim
         }
 
         #endregion
-        
-        private ComponentDataArray<Position> _position;
-        private ComponentDataArray<Rotation> _rotation;
-        private ComponentDataArray<VehicleData> _vehicleData;
-        private ComponentDataArray<HitResult> _hitResult;
+
+        private BVHConstructor _BVH;
         private NativeArray<RoadNode> _roadNodes;
         private NativeArray<RoadSegment> _roadSegments;
         private NativeArray<uint> _randSeed;

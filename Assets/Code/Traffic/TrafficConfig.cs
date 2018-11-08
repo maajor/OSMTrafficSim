@@ -1,26 +1,64 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class TrafficConfig : MonoBehaviour {
-
-    private static TrafficConfig _instance;
-    public static TrafficConfig Instance
+namespace OSMTrafficSim
+{
+    [Serializable]
+    public struct VehicleTemplate
     {
-        get
+        public GameObject Prefab;
+        public float Weight;
+    }
+
+    public class TrafficConfig : MonoBehaviour
+    {
+
+        private static TrafficConfig _instance;
+
+        public static TrafficConfig Instance
         {
-            if (_instance == null)
+            get
             {
-                _instance = GameObject.FindObjectOfType<TrafficConfig>();
+                if (_instance == null)
+                {
+                    _instance = GameObject.FindObjectOfType<TrafficConfig>();
+                }
+
+                return _instance;
             }
-            return _instance;
+        }
+
+        public void Awake()
+        {
+            _instance = this;
+        }
+
+        public int MaxVehicles = 1024;
+        public List<VehicleTemplate> Templates;
+
+        public void OnValidate()
+        {
+            List< VehicleTemplate > valid = new List<VehicleTemplate>();
+            foreach (var veh in Templates)
+            {
+                if (veh.Prefab == null)
+                {
+                    valid.Add(veh);
+                    continue;
+                }
+                var mf = veh.Prefab.GetComponent<MeshFilter>();
+                if (mf == null) continue;
+                var mesh = mf.sharedMesh;
+                if (mesh == null) continue;
+                var mr = veh.Prefab.GetComponent<MeshRenderer>();
+                if (mr == null) continue;
+                var mat = mr.sharedMaterial;
+                if (mat == null) continue;
+                valid.Add(veh);
+            }
+            Templates = valid;
         }
     }
-
-    public void Awake()
-    {
-        _instance = this;
-    }
-
-    public int MaxVehicles = 1024;
 }

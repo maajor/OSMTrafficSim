@@ -188,7 +188,8 @@ namespace OSMTrafficSim
         public void InitRandom()
         {
             RandomGen = new Unity.Mathematics.Random();
-            RandomGen.InitState((uint)System.DateTime.Now.Millisecond);
+           // RandomGen.InitState((uint)System.DateTime.Now.Millisecond);
+            RandomGen.InitState();
         }
 
         public void GetNextRandomPosition(out float3 position, out quaternion rotation, out float3 direction, out float speed, 
@@ -227,10 +228,11 @@ namespace OSMTrafficSim
         }
 #if UNITY_EDITOR
         public ComponentDataArray<VehicleData> VehicleData;
+        public ComponentDataArray<HitResult> hit;
         public void OnDrawGizmos()
         {
             if (!bDebug) return;
-            Gizmos.color = Color.red;
+            /*Gizmos.color = Color.red;
             foreach (var node in RoadNodes) {
                 Gizmos.DrawWireSphere(node.Position, 3.0f);
                 Handles.color = Color.red;
@@ -247,14 +249,12 @@ namespace OSMTrafficSim
                 if (bDeepDebug) Handles.Label(mid, string.Format("num{0}, speed{1}",
                     seg.SegmentId,seg.MaxSpeed
                     ));
-            }
+            }*/
             /*Gizmos.color = Color.magenta;
             for (int i = 0; i < VehicleData.Length; i++)
             {
-                Handles.Label(VehicleData[i].Position, string.Format("HitDist{0} Pos{1} Dir{2}", 
-                    VehicleData[i].HitDistAhead,
-                    VehicleData[i].CurrentSegPos,
-                    VehicleData[i].Direction
+                Handles.Label(VehicleData[i].Position, string.Format("HitDist{0}",
+                    hit[i].FrontHitDistance
                     ));
                 Gizmos.DrawRay(VehicleData[i].Position, VehicleData[i].Forward * 10);
             }*/
@@ -290,6 +290,7 @@ namespace OSMTrafficSim
                 }
             }
         }
+        
 #endif
 
         private int GetRoadLevel(string typename)
