@@ -1,12 +1,6 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using System;
-using System.Security.Policy;
+﻿using System;
 using Unity.Entities;
 using Unity.Mathematics;
-using Unity.Transforms;
-using Unity.Rendering;
-using UnityEngine;
 
 namespace OSMTrafficSim
 {
@@ -36,8 +30,7 @@ namespace OSMTrafficSim
             this.HitDistAhead = hitDistAhead;
         }
     }
-
-    //[RequireComponent(typeof(CopyTransformToGameObjectComponent))]
+    
     public class VehicleComponent : ComponentDataWrapper<VehicleData> {
 
         public VehicleComponent(uint id, int currentid, float speed, float3 direction, float segpos, float dir, float3 position, int lane, float hitDistAhead) {
@@ -45,14 +38,4 @@ namespace OSMTrafficSim
         }
         
     }
-
-    [Serializable]
-    public struct HitResult : IComponentData
-    {
-        public float FrontHitDistance;
-        public int HitResultPacked;//0x1 front, 0x2 left, 0x4 right
-        public int FrontEntityId;
-    }
-
-    public class HitResultComponent : ComponentDataWrapper<HitResult>{}
 }

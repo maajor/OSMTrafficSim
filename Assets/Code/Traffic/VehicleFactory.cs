@@ -1,16 +1,16 @@
-﻿using System;
-using System.Collections;
+﻿using OSMTrafficSim.BVH;
+using System;
 using System.Collections.Generic;
 using Unity.Entities;
+using Unity.Mathematics;
 using Unity.Rendering;
 using Unity.Transforms;
-using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 
 namespace OSMTrafficSim
 {
-     public class VehicleFactory {
+    public class VehicleFactory {
 
          private static EntityArchetype _vehicleArchetype;
          private static int _vehicleCount;

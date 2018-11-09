@@ -134304,7 +134304,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a3a55561c90f3684891c203425ffabc6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  MaxVehicles: 5000
+  MaxVehicles: 25000
   Templates:
   - Prefab: {fileID: 1049237920949638, guid: d1ea124189045dd499adc6627849651f, type: 2}
     Weight: 0.2

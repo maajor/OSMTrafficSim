@@ -1,9 +1,7 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
-using Unity.Collections;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -232,7 +230,7 @@ namespace OSMTrafficSim
         public void OnDrawGizmos()
         {
             if (!bDebug) return;
-            /*Gizmos.color = Color.red;
+            Gizmos.color = Color.red;
             foreach (var node in RoadNodes) {
                 Gizmos.DrawWireSphere(node.Position, 3.0f);
                 Handles.color = Color.red;
@@ -249,7 +247,7 @@ namespace OSMTrafficSim
                 if (bDeepDebug) Handles.Label(mid, string.Format("num{0}, speed{1}",
                     seg.SegmentId,seg.MaxSpeed
                     ));
-            }*/
+            }
             /*Gizmos.color = Color.magenta;
             for (int i = 0; i < VehicleData.Length; i++)
             {

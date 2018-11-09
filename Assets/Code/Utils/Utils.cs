@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using Unity.Mathematics;
 using UnityEngine;
 using Random = Unity.Mathematics.Random;
+using OSMTrafficSim.BVH;
 
 namespace OSMTrafficSim
 {
@@ -34,6 +35,7 @@ namespace OSMTrafficSim
             return i + 1;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint ExpandBits(uint v)
         {
             v = (v * 0x00010001u) & 0xFF0000FFu;
@@ -43,7 +45,23 @@ namespace OSMTrafficSim
             return v;
         }
 
-        public static int CalculateMortonCode(float3 vector)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint ExpandBits2D(uint v)
+        {
+            v &= 0x0000ffff;
+            v |= (v << 8);
+            v &= 0x00ff00ff;
+            v |= (v << 4);
+            v &= 0x0f0f0f0f;
+            v |= (v << 2);
+            v &= 0x33333333;
+            v |= (v << 1);
+            v &= 0x55555555;
+            return v;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint CalculateMortonCode(float3 vector)
         {
             vector.x = math.min(math.max(vector.x * 1024.0f, 0.0f), 1023.0f);
             vector.y = math.min(math.max(vector.y * 1024.0f, 0.0f), 1023.0f);
@@ -51,7 +69,17 @@ namespace OSMTrafficSim
             uint xx = ExpandBits((uint) vector.x);
             uint yy = ExpandBits((uint) vector.y);
             uint zz = ExpandBits((uint) vector.z);
-            return (int)(xx * 4 + yy * 2 + zz);
+            return (xx * 4 + yy * 2 + zz);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint CalculateMortonCode2D(float3 vector)
+        {
+            vector.x = math.min(math.max(vector.x * 65536.0f, 0.0f), 65536.0f);
+            vector.z = math.min(math.max(vector.z * 65536.0f, 0.0f), 65535.0f);
+            uint xx = ExpandBits2D((uint)vector.x);
+            uint zz = ExpandBits2D((uint)vector.z);
+            return (xx * 2 + zz);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -62,6 +90,7 @@ namespace OSMTrafficSim
                    (a.Min.y <= b.Max.y && a.Max.y >= b.Min.y);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AABB GetEncompassingAABB(AABB a, AABB b)
         {
             AABB returnAABB = new AABB();
@@ -82,6 +111,7 @@ namespace OSMTrafficSim
             sourceAABB.Max.z = math.max(sourceAABB.Max.z, includePoint.z);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float3 GetAABBCenter(AABB aabb)
         {
             return (aabb.Min + aabb.Max) * 0.5f;
@@ -110,21 +140,11 @@ namespace OSMTrafficSim
             return v - (v >> 1);
         }
 
-        public static int GetFirstChildBVHNodeIndex(int index)
+        static void Swap<T>(ref T x, ref T y)
         {
-            return (index * 2) + 1;
-        }
-
-        public static int GetParentBVHNodeIndex(int index)
-        {
-            if (index % 2 == 0)
-            {
-                return (index / 2) - 1;
-            }
-            else
-            {
-                return index / 2;
-            }
+            T t = y;
+            y = x;
+            x = t;
         }
     }
 }
