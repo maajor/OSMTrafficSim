@@ -64,12 +64,12 @@ namespace OSMTrafficSim
         public static Entity AddVehicle(EntityManager manager, string name)
         {
             throw new NotImplementedException();
-            int templateId;
+            /*int templateId;
             if (_templateNameId.TryGetValue(name, out templateId))
             {
 
             }
-            return Entity.Null;
+            return Entity.Null;*/
         }
 
         public static Entity AddVehicle(EntityManager manager)

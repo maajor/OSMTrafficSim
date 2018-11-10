@@ -36,6 +36,9 @@ namespace OSMTrafficSim
 
         public int MaxVehicles = 1024;
         public List<VehicleTemplate> Templates;
+        public int MaxPedestrian = 1024;
+        public Mesh ManMesh;
+        public Material ManMat;
 
         public void OnValidate()
         {

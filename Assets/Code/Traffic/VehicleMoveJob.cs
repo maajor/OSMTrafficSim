@@ -59,9 +59,9 @@ namespace OSMTrafficSim
                 newSpeed -= (distAheadDiff / 2.0f);
             }
 
-            if (newDistanceAhead < 20.0f)
+            if (newDistanceAhead < 5.0f)
             {
-                newSpeed -= 0.5f;
+                newSpeed -= 0.2f;
             }
 
             newSpeed = newSpeed > maxSpeed ? maxSpeed : newSpeed;
