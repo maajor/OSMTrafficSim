@@ -29,7 +29,6 @@ namespace OSMTrafficSim
             {
                 myTarget.BuildWalkableArea();
             }
-            myTarget.startPos = myTarget.GetComponent<Transform>().position;
             if (changed)
             {
                 serializedObject.ApplyModifiedProperties();

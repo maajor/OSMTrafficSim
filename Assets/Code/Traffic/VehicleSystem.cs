@@ -4,6 +4,7 @@ using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
 using OSMTrafficSim.BVH;
+using Unity.Rendering;
 
 namespace OSMTrafficSim
 {

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Collections;
 using Unity.Rendering;
 using Unity.Transforms;
 using UnityEngine;
@@ -19,9 +20,9 @@ namespace OSMTrafficSim
         public static void Init(EntityManager manager)
         {
             _pedestrianArchetype = manager.CreateArchetype(typeof(PedestrianData), typeof(Position), typeof(Rotation),
-                 typeof(MeshInstanceRenderer));
+                 typeof(MeshInstanceRenderer)/*, typeof(MeshLODComponent), typeof(MeshLODGroupComponent)*/);
             //_pedestrianCount = 0;
-
+            //FixedArrayArray<InstanceRendererProperty>
             PedestrianArea.Instance.InitRandom();
         }
 
@@ -46,6 +47,8 @@ namespace OSMTrafficSim
                 receiveShadows = false,
                 subMesh = 0
             });
+            //manager.SetComponentData(pedestrian, new MeshLODComponent(){ Group = pedestrian, LODMask = 1});
+            //manager.SetComponentData(pedestrian, new MeshLODGroupComponent() {});
 
             //_pedestrianCount++;
             return pedestrian;

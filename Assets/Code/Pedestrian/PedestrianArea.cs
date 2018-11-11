@@ -108,6 +108,23 @@ namespace OSMTrafficSim
 
         public void BuildWalkableArea()
         {
+            WalkableArea[] areas = gameObject.GetComponentsInChildren<WalkableArea>();
+            if (areas.Length == 0) return;
+            Bounds bound = new Bounds();
+            bool empty = true;
+            foreach (var area in areas)
+            {
+                area.OnBuild();
+                if (empty){
+                    bound = area.Col.bounds;
+                    empty = false;
+                }
+                bound.Encapsulate(area.Col.bounds);
+            }
+
+            startPos = bound.center;
+            Size = bound.size;
+
             WalkableArea.Clear();
             float div_x = Size.x / PatchResolution;
             float div_z = Size.z / PatchResolution;
@@ -122,6 +139,10 @@ namespace OSMTrafficSim
                     Vector3 patch_max = min + new Vector3((i + 1) * div_x, 0, (j + 1) * div_z);
                     WalkableArea.Add(BuildPatch(patch_min, patch_max));
                 }
+            }
+            foreach (var area in areas)
+            {
+                area.OnFinish();
             }
             EditorUtility.ClearProgressBar();
         }
@@ -140,8 +161,9 @@ namespace OSMTrafficSim
                     Vector3 texelCenter = min + new Vector3((i) * div_x, 0, (j) * div_z);
                     Ray castRay = new Ray(new Vector3(texelCenter.x, 1000, texelCenter.z), new Vector3(0, -1, 0));
                     int id = i * 9 + j;
-                    RaycastHit[] castHits = Physics.RaycastAll(castRay, 2000.0f, 1 << 11 | 1 << 12);
-                    if (castHits.Length == 0)
+                    RaycastHit[] castHitObstacles = Physics.RaycastAll(castRay, 2000.0f, 1 << 11 | 1 << 12);
+                    RaycastHit[] castHitAreas = Physics.RaycastAll(castRay, 2000.0f, 1 << 31);
+                    if (castHitObstacles.Length == 0 && castHitAreas.Length > 0)
                     {
                         conserveGrid[id] = true;
                     }
@@ -167,16 +189,13 @@ namespace OSMTrafficSim
 
         void OnDrawGizmos()
         {
-            if (!bDebug)
+            if (bDebug)
             {
                 Color boxcolor = new Color(0.5f, 0, 0, 0.2f);
                 Gizmos.color = boxcolor;
                 Gizmos.DrawCube(startPos, Size);
-            }
-            Gizmos.color = Color.white;
-            Gizmos.DrawWireCube(startPos, Size);
-            if (bDebug)
-            {
+                Gizmos.color = Color.white;
+                Gizmos.DrawWireCube(startPos, Size);
                 DebugDrawWalkableArea();
             }
         }
