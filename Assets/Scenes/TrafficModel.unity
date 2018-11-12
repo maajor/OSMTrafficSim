@@ -134633,6 +134633,7 @@ MonoBehaviour:
   MaxPedestrian: 1000
   ManMesh: {fileID: 4300000, guid: 2833d6b0fcb82e641937ba85ecf35a11, type: 3}
   ManMat: {fileID: 2100000, guid: 383f4b79351648043b57b404a34a3809, type: 2}
+  PedestrianCullDistance: 500
 --- !u!1 &2107196558
 GameObject:
   m_ObjectHideFlags: 0

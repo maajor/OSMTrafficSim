@@ -42,10 +42,10 @@ namespace OSMTrafficSim
             {
                 CastShadows = ShadowCastingMode.Off,
                 Material = TrafficConfig.Instance.ManMat,
-                Mesh = _pedestrianCount % 2 == 0 ? TrafficConfig.Instance.ManMesh : null,
+                Mesh = TrafficConfig.Instance.ManMesh,
                 ReceiveShadows = false,
                 SubMesh = 0,
-                CullDistance = 300.0f
+                CullDistance = TrafficConfig.Instance.PedestrianCullDistance
             });
             manager.SetComponentData(pedestrian, new InstanceRendererProperty()
             {

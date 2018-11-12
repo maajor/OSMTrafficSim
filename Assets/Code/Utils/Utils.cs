@@ -6,6 +6,8 @@ using Unity.Mathematics;
 using UnityEngine;
 using Random = Unity.Mathematics.Random;
 using OSMTrafficSim.BVH;
+using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 
 namespace OSMTrafficSim
 {
@@ -145,6 +147,24 @@ namespace OSMTrafficSim
             T t = y;
             y = x;
             x = t;
+        }
+
+        public static unsafe void CopyToFloat4x4(NativeArray<float4x4> transforms, Matrix4x4[] outMatrices)
+        {
+            fixed (Matrix4x4* resultMatrices = outMatrices)
+            {
+                float4x4* sourceMatrices = (float4x4*)transforms.GetUnsafeReadOnlyPtr();
+                UnsafeUtility.MemCpy(resultMatrices, sourceMatrices, UnsafeUtility.SizeOf<Matrix4x4>() * transforms.Length);
+            }
+        }
+
+        public static unsafe void CopyToFloat4(NativeArray<float4> param, Vector4[] outVectors)
+        {
+            fixed (Vector4* resultMatrices = outVectors)
+            {
+                float4* sourceMatrices = (float4*)param.GetUnsafeReadOnlyPtr();
+                UnsafeUtility.MemCpy(resultMatrices, sourceMatrices, UnsafeUtility.SizeOf<Vector4>() * param.Length);
+            }
         }
     }
 }

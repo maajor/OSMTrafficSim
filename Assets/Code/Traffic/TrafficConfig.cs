@@ -39,6 +39,7 @@ namespace OSMTrafficSim
         public int MaxPedestrian = 1024;
         public Mesh ManMesh;
         public Material ManMat;
+        public float PedestrianCullDistance;
 
         public void OnValidate()
         {
