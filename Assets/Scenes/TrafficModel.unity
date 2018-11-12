@@ -134624,13 +134624,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a3a55561c90f3684891c203425ffabc6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  MaxVehicles: 10000
+  MaxVehicles: 1000
   Templates:
   - Prefab: {fileID: 1049237920949638, guid: d1ea124189045dd499adc6627849651f, type: 2}
     Weight: 0.2
   - Prefab: {fileID: 1209480475991114, guid: 451ff3fbee3812548a7c62211bf81f2c, type: 2}
     Weight: 2
-  MaxPedestrian: 10000
+  MaxPedestrian: 1000
   ManMesh: {fileID: 4300000, guid: 2833d6b0fcb82e641937ba85ecf35a11, type: 3}
   ManMat: {fileID: 2100000, guid: 383f4b79351648043b57b404a34a3809, type: 2}
 --- !u!1 &2107196558

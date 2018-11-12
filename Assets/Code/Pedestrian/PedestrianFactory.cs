@@ -15,14 +15,13 @@ namespace OSMTrafficSim
     public class PedestrianFactory
     {
         private static EntityArchetype _pedestrianArchetype;
-       // private static int _pedestrianCount;
+        private static int _pedestrianCount;
 
         public static void Init(EntityManager manager)
         {
             _pedestrianArchetype = manager.CreateArchetype(typeof(PedestrianData), typeof(Position), typeof(Rotation),
-                 typeof(MeshInstanceRenderer)/*, typeof(MeshLODComponent), typeof(MeshLODGroupComponent)*/);
-            //_pedestrianCount = 0;
-            //FixedArrayArray<InstanceRendererProperty>
+                 typeof(InstanceRendererData), typeof(InstanceRendererProperty));
+            _pedestrianCount = 0;
             PedestrianArea.Instance.InitRandom();
         }
 
@@ -39,18 +38,23 @@ namespace OSMTrafficSim
             manager.SetComponentData(pedestrian, new PedestrianData(){ Forword = forward, LocalPos = localpos, Speed = speed, WorldPos = pos, GridId = gridid });
             manager.SetComponentData(pedestrian, new Position() { Value = pos });
             manager.SetComponentData(pedestrian, new Rotation() { Value = rot });
-            manager.SetSharedComponentData(pedestrian, new MeshInstanceRenderer()
+            manager.SetSharedComponentData(pedestrian, new InstanceRendererData()
             {
-                castShadows = ShadowCastingMode.Off,
-                material = TrafficConfig.Instance.ManMat,
-                mesh = TrafficConfig.Instance.ManMesh,
-                receiveShadows = false,
-                subMesh = 0
+                CastShadows = ShadowCastingMode.Off,
+                Material = TrafficConfig.Instance.ManMat,
+                Mesh = _pedestrianCount % 2 == 0 ? TrafficConfig.Instance.ManMesh : null,
+                ReceiveShadows = false,
+                SubMesh = 0,
+                CullDistance = 300.0f
             });
-            //manager.SetComponentData(pedestrian, new MeshLODComponent(){ Group = pedestrian, LODMask = 1});
+            manager.SetComponentData(pedestrian, new InstanceRendererProperty()
+            {
+                ParamId = Shader.PropertyToID("_FrameRange"),
+                Value = new float4(26, 58, 0, 0)
+            });
             //manager.SetComponentData(pedestrian, new MeshLODGroupComponent() {});
 
-            //_pedestrianCount++;
+            _pedestrianCount++;
             return pedestrian;
         }
     }
