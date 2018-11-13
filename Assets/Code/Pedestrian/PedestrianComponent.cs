@@ -20,4 +20,15 @@ namespace OSMTrafficSim
     public class PedestrianComponent : ComponentDataWrapper<PedestrianData>
     {
     }
+
+    [Serializable]
+    public struct PedestrianState : IComponentData
+    {
+        public int State;
+        public float CoolDown;
+    }
+
+    public class PedestrianStateComponent : ComponentDataWrapper<PedestrianState>
+    {
+    }
 }

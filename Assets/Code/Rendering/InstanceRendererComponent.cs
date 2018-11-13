@@ -20,6 +20,7 @@ namespace OSMTrafficSim
         public ShadowCastingMode CastShadows;
         public bool ReceiveShadows;
         public float CullDistance;
+        public int InstanceShaderPropertyId;
     }
 
     public class InstanceRendererComponent : SharedComponentDataWrapper<InstanceRendererData>

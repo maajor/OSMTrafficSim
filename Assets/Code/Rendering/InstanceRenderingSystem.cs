@@ -10,6 +10,8 @@ using Unity.Mathematics;
 using Unity.Rendering;
 using Unity.Transforms;
 using UnityEngine;
+using UnityEngine.Experimental.Animations;
+using UnityEngine.Playables;
 using UnityEngine.Rendering;
 
 namespace OSMTrafficSim
@@ -38,7 +40,7 @@ namespace OSMTrafficSim
             _cullDistance = new NativeArray<float>(cullDistance.ToArray(), Allocator.Persistent);
             _cullDistance.CopyFrom(cullDistance.ToArray());
 
-            _batcher = new NativeMultiHashMap<int, Entity>(1000000, Allocator.Persistent);
+            _batcher = new NativeMultiHashMap<int, Entity>(10000, Allocator.Persistent);
 
             _renderer = new InstanceRenderer(EntityManager);
         }
@@ -52,9 +54,19 @@ namespace OSMTrafficSim
 
         protected override void OnUpdate()
         {
-            if (ActiveCamera == null) return;
+        }
+
+        public void Tick()
+        {
+            if (ActiveCamera == null || !_batcher.IsCreated) return;
+            //share component id can only be visited by architypechunks, 
+            //so we iterate over architypechunks here
+            //https://github.com/Unity-Technologies/EntityComponentSystemSamples/blob/8f94d72d1fd9b8db896646d9d533055917dc265a/Documentation/reference/chunk_iteration.md
             _batcher.Clear();
+            UnityEngine.Profiling.Profiler.BeginSample("gather chunks");
             NativeArray<ArchetypeChunk> chunks = EntityManager.CreateArchetypeChunkArray(_query, Allocator.TempJob);
+            UnityEngine.Profiling.Profiler.EndSample();
+            UnityEngine.Profiling.Profiler.BeginSample("start cull");
             var cullJob = new CullJob()
             {
                 EntityType = GetArchetypeChunkEntityType(),
@@ -65,15 +77,17 @@ namespace OSMTrafficSim
                 CamPos = ActiveCamera.transform.position,
                 CullDistance = _cullDistance
             };
-
-            var deps = cullJob.Schedule(chunks.Length, 32);
+            var deps = cullJob.Schedule(chunks.Length, 1);
             deps.Complete();
-
+            UnityEngine.Profiling.Profiler.EndSample();
+            UnityEngine.Profiling.Profiler.BeginSample("start render");
             Render();
+            UnityEngine.Profiling.Profiler.EndSample();
         }
 
         public void Render()
         {
+            //_renderer.Clean(ActiveCamera);
             for (int i = 0; i < _renderData.Count; i++)
             {
                 if (_renderData[i].Material && _renderData[i].Mesh)
@@ -94,5 +108,7 @@ namespace OSMTrafficSim
                 }
             }
         }
+        
+
     }
 }

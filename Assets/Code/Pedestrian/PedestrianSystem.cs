@@ -9,6 +9,7 @@ using Unity.Mathematics;
 using Unity.Rendering;
 using Unity.Transforms;
 using UnityEditor.Experimental.UIElements.GraphView;
+using UnityEditor.VersionControl;
 using UnityEngine;
 using Random = Unity.Mathematics.Random;
 using WalkablePatch = System.UInt64;
@@ -23,6 +24,8 @@ namespace OSMTrafficSim
             public ComponentDataArray<PedestrianData> PedestrianData;
             public ComponentDataArray<Position> Position;
             public ComponentDataArray<Rotation> Rotation;
+            public ComponentDataArray<PedestrianState> States;
+            public ComponentDataArray<InstanceRendererProperty> StateProperty;
         }
         [Inject] PedestrianGroup _pedestrianGroup;
 
@@ -74,6 +77,11 @@ namespace OSMTrafficSim
             
             var stateJob = new PedestrianStateMachineJob()
             {
+                PedestrianData = _pedestrianGroup.PedestrianData,
+                States = _pedestrianGroup.States,
+                StateProperty = _pedestrianGroup.StateProperty,
+                RdGen = new Random(_randSeed[(Time.frameCount % _capacity)]),
+                DeltaTime = Time.deltaTime,
             };
             deps = stateJob.Schedule(_capacity, 64, deps);
 
@@ -159,9 +167,182 @@ namespace OSMTrafficSim
         [BurstCompile]
         struct PedestrianStateMachineJob : IJobParallelFor
         {
+            public ComponentDataArray<PedestrianData> PedestrianData;
+            public ComponentDataArray<PedestrianState> States;
+            public ComponentDataArray<InstanceRendererProperty> StateProperty;
+            public Random RdGen;
+            public float DeltaTime;
+
             public void Execute(int index)
             {
+                int currentState = States[index].State;
+                float cd = States[index].CoolDown - DeltaTime;
+                if (cd < 0)
+                {
+                    PedestrianState newstate = States[index];
+                    PedestrianData newdata = PedestrianData[index];
+                    InstanceRendererProperty newproperty = StateProperty[index];
+                    switch (currentState)
+                    {
+                        case 0://walking
+                            ProcessWalkState(newdata, out newstate, out newdata);
+                            break;
+                        case 1://running
+                            ProcessRunState(newdata, out newstate, out newdata);
+                            break;
+                        case 2://waiting
+                            ProcessWaitState(newdata, out newstate, out newdata);
+                            break;
+                        case 3://standing
+                            ProcessStandState(newdata, out newstate, out newdata);
+                            break;
+                        default:
+                            break;
+                    }
+                    SetAnimProperty(newproperty, newstate, out newproperty);
+                    StateProperty[index] = newproperty;
+                    PedestrianData[index] = newdata;
+                    States[index] = newstate;
 
+                }
+                else
+                {
+                    States[index] = new PedestrianState() {CoolDown = cd, State = currentState};
+                }
+            }
+
+            private void ProcessWalkState(PedestrianData inputData, out PedestrianState state, out PedestrianData data)
+            {
+                state = new PedestrianState();
+                float randseed = RdGen.NextFloat();
+                if (randseed < 0.6f)//to walk again
+                {
+                    state.State = 0;
+                    state.CoolDown = RdGen.NextFloat(5.0f, 10.0f);
+                    inputData.Speed = RdGen.NextFloat(1.0f, 2.0f);
+                }
+                else if (randseed < 0.8f)//to wait
+                {
+                    state.State = 2;
+                    state.CoolDown = RdGen.NextFloat(5.0f, 10.0f);
+                    inputData.Speed = 0;
+                }
+                else if (randseed < 0.9f)//to run;
+                {
+                    state.State = 1;
+                    state.CoolDown = RdGen.NextFloat(3.0f, 5.0f);
+                    inputData.Speed = RdGen.NextFloat(3.0f, 4.0f);
+                }
+                else
+                {
+                    state.State = 3;//to stand
+                    state.CoolDown = RdGen.NextFloat(5.0f, 10.0f);
+                    inputData.Speed = 0;
+                }
+
+                data = inputData;
+            }
+
+            private void ProcessRunState(PedestrianData inputData, out PedestrianState state, out PedestrianData data)
+            {
+                state = new PedestrianState();
+                float randseed = RdGen.NextFloat();
+                if (randseed < 0.3f)//to wait
+                {
+                    state.State = 2;
+                    state.CoolDown = RdGen.NextFloat(5.0f, 10.0f);
+                    inputData.Speed = 0;
+                }
+                else if (randseed < 0.8f)//to walk;
+                {
+                    state.State = 0;
+                    state.CoolDown = RdGen.NextFloat(3.0f, 5.0f);
+                    inputData.Speed = RdGen.NextFloat(1.0f, 2.0f);
+                }
+                else
+                {
+                    state.State = 3;//to stand
+                    state.CoolDown = RdGen.NextFloat(5.0f, 10.0f);
+                    inputData.Speed = 0;
+                }
+
+                data = inputData;
+            }
+
+            private void ProcessWaitState(PedestrianData inputData, out PedestrianState state, out PedestrianData data)
+            {
+                state = new PedestrianState();
+                float randseed = RdGen.NextFloat();
+                if (randseed < 0.8f)//to walk
+                {
+                    state.State = 0;
+                    state.CoolDown = RdGen.NextFloat(5.0f, 10.0f);
+                    inputData.Speed = RdGen.NextFloat(1.0f, 2.0f);
+                }
+                else if (randseed < 0.9f)//to run;
+                {
+                    state.State = 1;
+                    state.CoolDown = RdGen.NextFloat(3.0f, 5.0f);
+                    inputData.Speed = RdGen.NextFloat(3.0f, 4.0f);
+                }
+                else
+                {
+                    state.State = 3;//to stand
+                    state.CoolDown = RdGen.NextFloat(5.0f, 10.0f);
+                    inputData.Speed = 0;
+                }
+
+                data = inputData;
+            }
+
+            private void ProcessStandState(PedestrianData inputData, out PedestrianState state, out PedestrianData data)
+            {
+                state = new PedestrianState();
+                float randseed = RdGen.NextFloat();
+                if (randseed < 0.8f)//to walk
+                {
+                    state.State = 0;
+                    state.CoolDown = RdGen.NextFloat(5.0f, 10.0f);
+                    inputData.Speed = RdGen.NextFloat(1.0f, 2.0f);
+                }
+                else if (randseed < 0.9f)//to run;
+                {
+                    state.State = 1;
+                    state.CoolDown = RdGen.NextFloat(3.0f, 5.0f);
+                    inputData.Speed = RdGen.NextFloat(3.0f, 4.0f);
+                }
+                else
+                {
+                    state.State = 2;//to wait
+                    state.CoolDown = RdGen.NextFloat(5.0f, 10.0f);
+                    inputData.Speed = 0;
+                }
+
+                data = inputData;
+            }
+
+            private void SetAnimProperty(InstanceRendererProperty inputproperty, PedestrianState state, out InstanceRendererProperty property)
+            {
+                switch (state.State)
+                {
+                    case 0:
+                        inputproperty.Value = new float4(0, 25, 0, 0);
+                        break;
+                    case 1:
+                        inputproperty.Value = new float4(26, 57, 0, 0);
+                        break;
+                    case 2:
+                        inputproperty.Value = new float4(58, 330, 0, 0);
+                        break;
+                    case 3:
+                        inputproperty.Value = new float4(331, 511, 0, 0);
+                        break;
+                    default:
+                        inputproperty.Value = new float4(0, 25, 0, 0);
+                        break;
+                }
+
+                property = inputproperty;
             }
         }
 

@@ -20,7 +20,7 @@ namespace OSMTrafficSim
         public static void Init(EntityManager manager)
         {
             _pedestrianArchetype = manager.CreateArchetype(typeof(PedestrianData), typeof(Position), typeof(Rotation),
-                 typeof(InstanceRendererData), typeof(InstanceRendererProperty));
+                 typeof(InstanceRendererData), typeof(InstanceRendererProperty), typeof(PedestrianState));
             _pedestrianCount = 0;
             PedestrianArea.Instance.InitRandom();
         }
@@ -45,14 +45,15 @@ namespace OSMTrafficSim
                 Mesh = TrafficConfig.Instance.ManMesh,
                 ReceiveShadows = false,
                 SubMesh = 0,
-                CullDistance = TrafficConfig.Instance.PedestrianCullDistance
+                CullDistance = TrafficConfig.Instance.PedestrianCullDistance,
+                InstanceShaderPropertyId = Shader.PropertyToID("_FrameRange")
             });
             manager.SetComponentData(pedestrian, new InstanceRendererProperty()
             {
                 ParamId = Shader.PropertyToID("_FrameRange"),
                 Value = new float4(26, 58, 0, 0)
             });
-            //manager.SetComponentData(pedestrian, new MeshLODGroupComponent() {});
+            manager.SetComponentData(pedestrian, new PedestrianState(){ State = 0 });
 
             _pedestrianCount++;
             return pedestrian;

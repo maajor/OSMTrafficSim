@@ -27,7 +27,7 @@ public class InstanceRendererBootstrap : ComponentSystem {
     public void OnBeforeCull(Camera camera)
     {
         instanceRendererSystem.ActiveCamera = camera;
-        instanceRendererSystem.Update();
+        instanceRendererSystem.Tick();
         instanceRendererSystem.ActiveCamera = null;
 
     }

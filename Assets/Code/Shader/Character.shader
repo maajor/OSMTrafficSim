@@ -7,7 +7,7 @@ Shader "Custom/Character" {
 		_totalFrame("Total Frames", int) = 240
 		_speed("Speed", Float) = 0.33
 		_posTex ("Position Map (RGB)", 2D) = "white" {}
-		_FrameRange("FrameRange", Vector) = (0,0,0,0)
+		//_FrameRange("FrameRange", Vector) = (0,0,0,0)
 	}
 	SubShader {
 		Tags { "RenderType"="Opaque" }
@@ -25,7 +25,7 @@ Shader "Custom/Character" {
 		uniform float _speed;
 		uniform int _numOfFrames;
 		uniform float _totalFrame;
-		uniform float4 _FrameRange;
+		//uniform float4 _FrameRange;
 		struct Input {
 			float2 uv_MainTex;
 		};
@@ -38,14 +38,15 @@ Shader "Custom/Character" {
 		// See https://docs.unity3d.com/Manual/GPUInstancing.html for more information about instancing.
 		// #pragma instancing_options assumeuniformscaling
 		UNITY_INSTANCING_BUFFER_START(Props)
-			// put more per-instance properties here
+			UNITY_DEFINE_INSTANCED_PROP(float4, _FrameRange)
 		UNITY_INSTANCING_BUFFER_END(Props)
 
 		//vertex function
 		void vert(inout appdata_full v){
-			float _numOfFrames = _FrameRange.y - _FrameRange.x;
+			float4 localFrameRange = UNITY_ACCESS_INSTANCED_PROP(Props, _FrameRange);
+			float _numOfFrames = localFrameRange.y - localFrameRange.x;
 			float timeInFrames = ((ceil(frac(_Time.y * _speed / _numOfFrames) * _numOfFrames))/ _totalFrame) + (1.0/ _totalFrame);
-			timeInFrames += _FrameRange.x / _totalFrame;
+			timeInFrames += localFrameRange.x / _totalFrame;
 
 			//get position and normal from textures
 			float4 texturePos = tex2Dlod(_posTex,float4(v.texcoord1.x, 1 - (timeInFrames + v.texcoord1.y), 0, 0));
