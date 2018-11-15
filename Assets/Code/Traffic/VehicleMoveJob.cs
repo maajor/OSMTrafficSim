@@ -46,7 +46,7 @@ namespace OSMTrafficSim
             #region Redlight infront
             int currentSeg = VehicleData[i].SegId;
             int nextCrossing = VehicleData[i].Direction > 0.0f ? RoadSegments[currentSeg].EndNodeId : RoadSegments[currentSeg].StartNodeId;
-            /*float3 nextCrossingPos = RoadNodes[nextCrossing].Position;
+            float3 nextCrossingPos = RoadNodes[nextCrossing].Position;
             float distanceToCrossing = math.distance(currentPos, nextCrossingPos);
             int2 nextCrossingGreenlightConnect =
                 RoadNodes[nextCrossing].ConnectionSegIds[RoadNodes[nextCrossing].ActiveConnection];
@@ -54,7 +54,7 @@ namespace OSMTrafficSim
                 distanceToCrossing < 20.0f)
             {
                 return;
-            }*/
+            }
             #endregion
 
             #region SpeedVariation
@@ -68,14 +68,14 @@ namespace OSMTrafficSim
             {
                 newSpeed += 0.5f;
             }
-            else if ((hitResult & 0x1) == 1 && (distAheadDiff > 5))
+            else if ((hitResult & 0x1) == 1 && (distAheadDiff > 0))
             {
-                newSpeed -= ((distAheadDiff - 5.0f) / 20.0f);
+                newSpeed -= ((distAheadDiff ) / 20.0f);
             }
 
             if (newDistanceAhead < 5.0f)
             {
-                newSpeed -= 0.2f;
+                newSpeed = 0.0f;
             }
 
             newSpeed = newSpeed > maxSpeed ? maxSpeed : newSpeed;

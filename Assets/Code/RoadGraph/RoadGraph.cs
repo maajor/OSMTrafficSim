@@ -194,14 +194,16 @@ namespace OSMTrafficSim
 #if UNITY_EDITOR
         public ComponentDataArray<VehicleData> VehicleData;
         public ComponentDataArray<HitResult> hit;
+        public ComponentDataArray<RoadNode> debugnodes;
         public void OnDrawGizmos()
         {
             if (!bDebug) return;
             Gizmos.color = Color.red;
-            foreach (var node in RoadNodes) {
-                Gizmos.DrawWireSphere(node.Position, 3.0f);
+            for (int i = 0; i < debugnodes.Length; i++)
+            {
+                Gizmos.DrawWireSphere(debugnodes[i].Position, 3.0f);
                 Handles.color = Color.red;
-                if(bDeepDebug) Handles.Label(node.Position,node.NodeId.ToString());
+                if (bDeepDebug) Handles.Label(debugnodes[i].Position, string.Format("{0} {1} {2}", debugnodes[i].ConnectionSegIds, debugnodes[i].ActiveConnection, debugnodes[i].CountDown));
             }
             foreach (var seg in RoadSegments)
             {

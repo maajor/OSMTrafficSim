@@ -32,13 +32,12 @@ namespace OSMTrafficSim
 
         protected override JobHandle OnUpdate(JobHandle deps)
         {
-            deps = new TrafficLightJob()
+            var trafficLight = new TrafficLightJob()
             {
                 RoadNodes = _roadNodeGroup.RoadNodes,
                 DeltaTime = Time.deltaTime
-            }.Schedule(_roadNodeGroup.RoadNodes.Length, 32, deps);
-
-            return deps;
+            };
+            return trafficLight.Schedule(_roadNodeGroup.RoadNodes.Length, 32, deps);
         }
         
         [BurstCompile]
@@ -54,16 +53,16 @@ namespace OSMTrafficSim
                 if (newCd < 0)
                 {
                     newCd = 20.0f;
-                    int nextConnect = (currentnode.NodeId + 1) % 3;
+                    int nextConnect = (currentnode.ActiveConnection + 1) % 3;
                     int count = 0;
-                    while (currentnode.ConnectionSegIds[nextConnect].x == -1)
+                    while (currentnode.ConnectionSegIds[nextConnect].x == -1 && currentnode.ConnectionSegIds[nextConnect].y == -1)
                     {
                         if (count > 3)
                         {
                             nextConnect = 0;
                             break;
                         }
-                        nextConnect = (currentnode.NodeId + 1) % 3;
+                        nextConnect = (nextConnect + 1) % 3;
                         count++;
                     }
                     currentnode.ActiveConnection = nextConnect;
