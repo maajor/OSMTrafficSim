@@ -8,39 +8,6 @@ using UnityEditor;
 
 namespace OSMTrafficSim
 {
-
-    [System.Serializable]
-    public struct RoadNode : IComponentData
-    {
-        public int NodeId;
-        public int2x3 ConnectionSegIds;//max 3 mutex traffic light
-        public float3 Position;
-
-        public RoadNode(int id)
-        {
-            NodeId = id;
-            ConnectionSegIds = -1;
-            Position = 0;
-        }
-    }
-
-    [System.Serializable]
-    public struct RoadSegment : IComponentData
-    {
-        public int SegmentId;
-        public int StartNodeId;
-        public int EndNodeId;
-        public float3 Direction;
-        public float3 RightDirection;
-        public float Length;
-        public float LaneWidth;
-        public int LaneNumber;
-        public int IsOneWay;
-        public int Level;//1 primary, 2 secondary, 3 others
-        public float MaxSpeed;
-        public int NameHashcode;
-    }
-
     public class RoadGraph : MonoBehaviour
     {
         private static RoadGraph _instance;

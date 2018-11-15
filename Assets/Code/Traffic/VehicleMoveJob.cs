@@ -16,10 +16,10 @@ namespace OSMTrafficSim
         public uint FrameSeed;
 
         [ReadOnly]
-        public NativeArray<RoadNode> RoadNodes;
+        public ComponentDataArray<RoadNode> RoadNodes;
 
         [ReadOnly]
-        public NativeArray<RoadSegment> RoadSegments;
+        public ComponentDataArray<RoadSegment> RoadSegments;
 
         [ReadOnly]
         public NativeArray<uint> RandSeed;
@@ -43,6 +43,20 @@ namespace OSMTrafficSim
             float3 currentPos = Positions[i].Value;
             float3 currentDir = VehicleData[i].Forward;
 
+            #region Redlight infront
+            int currentSeg = VehicleData[i].SegId;
+            int nextCrossing = VehicleData[i].Direction > 0.0f ? RoadSegments[currentSeg].EndNodeId : RoadSegments[currentSeg].StartNodeId;
+            /*float3 nextCrossingPos = RoadNodes[nextCrossing].Position;
+            float distanceToCrossing = math.distance(currentPos, nextCrossingPos);
+            int2 nextCrossingGreenlightConnect =
+                RoadNodes[nextCrossing].ConnectionSegIds[RoadNodes[nextCrossing].ActiveConnection];
+            if (currentSeg != nextCrossingGreenlightConnect.x && currentSeg != nextCrossingGreenlightConnect.y &&
+                distanceToCrossing < 20.0f)
+            {
+                return;
+            }*/
+            #endregion
+
             #region SpeedVariation
             float prevDistanceAhead = VehicleData[i].HitDistAhead;
             float newDistanceAhead = HitResult[i].FrontHitDistance;
@@ -54,9 +68,9 @@ namespace OSMTrafficSim
             {
                 newSpeed += 0.5f;
             }
-            else if ((hitResult & 0x1) == 1 && (distAheadDiff > 0))
+            else if ((hitResult & 0x1) == 1 && (distAheadDiff > 5))
             {
-                newSpeed -= (distAheadDiff / 2.0f);
+                newSpeed -= ((distAheadDiff - 5.0f) / 20.0f);
             }
 
             if (newDistanceAhead < 5.0f)
@@ -117,21 +131,20 @@ namespace OSMTrafficSim
             //reach end node, find next seg
             else
             {
-                int currentSeg = VehicleData[i].SegId;
-                int reachedNode = VehicleData[i].Direction > 0.0f ? RoadSegments[currentSeg].EndNodeId : RoadSegments[currentSeg].StartNodeId;
-
+                //int reachedNode = VehicleData[i].Direction > 0.0f ? RoadSegments[currentSeg].EndNodeId : RoadSegments[currentSeg].StartNodeId;
+                
                 //find next available segment
                 int* _availableSeg = (int*)UnsafeUtility.Malloc(
                     5 * sizeof(int), sizeof(int), Allocator.Temp);
                 int availableSegCount = 0;
                 for (int k = 0; k < 3; k++)
                 {
-                    int seg1 = RoadNodes[reachedNode].ConnectionSegIds[k].x;
-                    int seg2 = RoadNodes[reachedNode].ConnectionSegIds[k].y;
+                    int seg1 = RoadNodes[nextCrossing].ConnectionSegIds[k].x;
+                    int seg2 = RoadNodes[nextCrossing].ConnectionSegIds[k].y;
                     if (seg1 != -1 && seg1 != currentSeg && //not current seg, and next seg not one-way
-                        !(RoadSegments[seg1].EndNodeId == reachedNode && RoadSegments[seg1].IsOneWay == 1)) _availableSeg[availableSegCount++] = seg1;
+                        !(RoadSegments[seg1].EndNodeId == nextCrossing && RoadSegments[seg1].IsOneWay == 1)) _availableSeg[availableSegCount++] = seg1;
                     if (seg2 != -1 && seg2 != currentSeg && //not current seg, and next seg not one-way
-                        !(RoadSegments[seg2].EndNodeId == reachedNode && RoadSegments[seg2].IsOneWay == 1)) _availableSeg[availableSegCount++] = seg2;
+                        !(RoadSegments[seg2].EndNodeId == nextCrossing && RoadSegments[seg2].IsOneWay == 1)) _availableSeg[availableSegCount++] = seg2;
                 }
 
                 int nextSeg = currentSeg;
@@ -140,7 +153,7 @@ namespace OSMTrafficSim
                 {
                     int selectSegId = rdGen.NextInt(0, availableSegCount);
                     nextSeg = _availableSeg[selectSegId];
-                    dir = RoadSegments[nextSeg].StartNodeId == reachedNode ? 1.0f : -1.0f;
+                    dir = RoadSegments[nextSeg].StartNodeId == nextCrossing ? 1.0f : -1.0f;
                 }
                 else//to the end, spawn a new pos
                 {

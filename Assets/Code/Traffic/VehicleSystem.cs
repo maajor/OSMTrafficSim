@@ -22,7 +22,9 @@ namespace OSMTrafficSim
             public ComponentDataArray<HitResult> HitResult;
         }
         [Inject] VehicleGroup _vehicleGroup;
-        
+        [Inject] RoadSegmentGroup _roadSegmentGroup;
+        [Inject] RoadNodeGroup _roadNodeGroup;
+
         private int Capacity = 1024;
 
         #region ComponentSystem Interface
@@ -37,11 +39,6 @@ namespace OSMTrafficSim
                 VehicleFactory.AddVehicle(EntityManager);
             }
 
-            _roadSegments = new NativeArray<RoadSegment>(RoadGraph.Instance.RoadSegments.ToArray(), Allocator.Persistent);
-            _roadNodes = new NativeArray<RoadNode>(RoadGraph.Instance.RoadNodes.ToArray(), Allocator.Persistent);
-            _roadNodes.CopyFrom(RoadGraph.Instance.RoadNodes.ToArray());
-            _roadSegments.CopyFrom(RoadGraph.Instance.RoadSegments.ToArray());
-
             var seeds = Utils.GetRandomSeed(Capacity);
             _randSeed = new NativeArray<uint>(seeds, Allocator.Persistent);
             _randSeed.CopyFrom(seeds);
@@ -50,8 +47,6 @@ namespace OSMTrafficSim
         }
         protected override void OnDestroyManager()
         {
-            _roadNodes.Dispose();
-            _roadSegments.Dispose();
             _randSeed.Dispose();
             _BVH.Dispose();
         }
@@ -75,8 +70,8 @@ namespace OSMTrafficSim
                 Positions = _vehicleGroup.Position,
                 Rotations = _vehicleGroup.Rotation,
                 VehicleData = _vehicleGroup.VehicleData,
-                RoadNodes = _roadNodes,
-                RoadSegments = _roadSegments,
+                RoadNodes = _roadNodeGroup.RoadNodes,
+                RoadSegments = _roadSegmentGroup.RoadSegments,
                 RandSeed = _randSeed,
                 HitResult = _vehicleGroup.HitResult,
                 AABB = _vehicleGroup.AABB,
@@ -90,8 +85,6 @@ namespace OSMTrafficSim
         #endregion
 
         private BVHConstructor _BVH;
-        private NativeArray<RoadNode> _roadNodes;
-        private NativeArray<RoadSegment> _roadSegments;
         private NativeArray<uint> _randSeed;
     }
 }
