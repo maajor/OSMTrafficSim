@@ -23,12 +23,3 @@ System requirements
 -------------------
 
 - Unity 2018.2 or later
-
-Feature Plan
--------------------
-
-- Crossing Simulation
-- Pedestrian Animation State Machine
-- DrawMeshInstance with Custom MaterialProperty
-- Visibility-Driven Update
-
