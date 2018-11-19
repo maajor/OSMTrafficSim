@@ -23,6 +23,7 @@ namespace OSMTrafficSim
         public bool bDebug;
         public bool bDeepDebug;
         public Vector2 RefCenter;
+        public Bounds BoundingBox;
         
         public List<RoadSegment> RoadSegments
         {
@@ -199,6 +200,7 @@ namespace OSMTrafficSim
         {
             if (!bDebug) return;
             Gizmos.color = Color.red;
+            Gizmos.DrawWireCube(BoundingBox.center, BoundingBox.size);
             for (int i = 0; i < debugnodes.Length; i++)
             {
                 Gizmos.DrawWireSphere(debugnodes[i].Position, 3.0f);

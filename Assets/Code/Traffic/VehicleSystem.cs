@@ -4,6 +4,7 @@ using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
 using OSMTrafficSim.BVH;
+using Unity.Mathematics;
 using Unity.Rendering;
 
 namespace OSMTrafficSim
@@ -42,6 +43,7 @@ namespace OSMTrafficSim
             var seeds = Utils.GetRandomSeed(Capacity);
             _randSeed = new NativeArray<uint>(seeds, Allocator.Persistent);
             _randSeed.CopyFrom(seeds);
+            _bound = RoadGraph.Instance.BoundingBox;
 
             _BVH = new BVHConstructor(Capacity);
         }
@@ -72,11 +74,12 @@ namespace OSMTrafficSim
                 VehicleData = _vehicleGroup.VehicleData,
                 RoadNodes = _roadNodeGroup.RoadNodes,
                 RoadSegments = _roadSegmentGroup.RoadSegments,
-                RandSeed = _randSeed,
                 HitResult = _vehicleGroup.HitResult,
                 AABB = _vehicleGroup.AABB,
                 FrameSeed = (uint)Time.frameCount,
-                DeltaTime = Time.deltaTime
+                DeltaTime = Time.deltaTime,
+                BoundingBox = _bound,
+                rdGen = new Unity.Mathematics.Random(_randSeed[Time.frameCount % _randSeed.Length])
             };
             deps = vehicleMoveJob.Schedule(Capacity, 64, deps);
 
@@ -86,5 +89,6 @@ namespace OSMTrafficSim
 
         private BVHConstructor _BVH;
         private NativeArray<uint> _randSeed;
+        private Bounds _bound;
     }
 }

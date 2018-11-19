@@ -6,6 +6,7 @@ using Unity.Burst;
 using Unity.Jobs;
 using Unity.Collections.LowLevel.Unsafe;
 using OSMTrafficSim.BVH;
+using UnityEngine;
 
 namespace OSMTrafficSim
 {
@@ -22,9 +23,6 @@ namespace OSMTrafficSim
         public ComponentDataArray<RoadSegment> RoadSegments;
 
         [ReadOnly]
-        public NativeArray<uint> RandSeed;
-
-        [ReadOnly]
         public ComponentDataArray<HitResult> HitResult;
 
         [NativeDisableContainerSafetyRestriction]
@@ -38,10 +36,59 @@ namespace OSMTrafficSim
 
         public ComponentDataArray<AABB> AABB;
 
+        public Bounds BoundingBox;
+
+        public Unity.Mathematics.Random rdGen;
+
         public unsafe void Execute(int i)
         {
             float3 currentPos = Positions[i].Value;
             float3 currentDir = VehicleData[i].Forward;
+
+            int laneCount, nextLane;
+            //spawn new pos
+            if (!BoundingBox.Contains(currentPos))
+            {
+                int nextSeg = rdGen.NextInt(0, RoadSegments.Length);
+
+                float3 nextForward = RoadSegments[nextSeg].Direction;
+                quaternion newRot = quaternion.LookRotation(nextForward, new float3() { x = 0, y = 1, z = 0 });
+
+                laneCount = RoadSegments[nextSeg].LaneNumber;
+                nextLane = 0;
+                float laneOffset = (nextLane + 0.5f) * RoadSegments[nextSeg].LaneWidth;
+                if (RoadSegments[nextSeg].IsOneWay == 1)
+                {
+                    laneOffset -= (laneCount / 2.0f) * RoadSegments[nextSeg].LaneWidth;
+                }
+
+                float nextPerct = 0;
+
+                float3 nextPos = (1.0f - nextPerct) * RoadNodes[RoadSegments[nextSeg].StartNodeId].Position +
+                                 (nextPerct) * RoadNodes[RoadSegments[nextSeg].EndNodeId].Position;
+                nextPos += laneOffset *  RoadSegments[nextSeg].RightDirection;
+
+                VehicleData[i] = new VehicleData(
+                    VehicleData[i].Id,
+                    nextSeg,
+                    VehicleData[i].Speed,
+                    nextForward,
+                    nextPerct,
+                    1.0f,
+                    nextPos,
+                    nextLane,
+                    50.0f
+                );
+
+                AABB newAABB = AABB[i];
+                newAABB.Max += (nextPos - currentPos);
+                newAABB.Min += (nextPos - currentPos);
+                AABB[i] = newAABB;
+
+                Positions[i] = new Position() { Value = nextPos };
+                Rotations[i] = new Rotation() { Value = newRot };
+                return;
+            }
 
             #region Redlight infront
             int currentSeg = VehicleData[i].SegId;
@@ -86,19 +133,17 @@ namespace OSMTrafficSim
             float segLength = RoadSegments[VehicleData[i].SegId].Length;
             float stepPerc = stepLength / segLength;
             float nextPosPerc = VehicleData[i].CurrentSegPos + stepPerc * VehicleData[i].Direction;
-
-            Unity.Mathematics.Random rdGen = new Unity.Mathematics.Random();
-            rdGen.InitState(FrameSeed + RandSeed[i]);
+            
 
             #region switchLane
 
-            int laneCount = RoadSegments[VehicleData[i].SegId].LaneNumber;
+            laneCount = RoadSegments[VehicleData[i].SegId].LaneNumber;
             int currentLane = VehicleData[i].Lane;
             int laneSwitch = rdGen.NextInt(-10, 10);
             laneSwitch = laneSwitch / 10;
             if (currentLane == 0 && laneSwitch == -1) laneSwitch = 0;
             if (currentLane == (laneCount - 1) && laneSwitch == 1) laneSwitch = 0;
-            int nextLane = VehicleData[i].Lane + laneSwitch;
+            nextLane = VehicleData[i].Lane + laneSwitch;
             #endregion
 
             //great, still in this seg
@@ -131,7 +176,6 @@ namespace OSMTrafficSim
             //reach end node, find next seg
             else
             {
-                //int reachedNode = VehicleData[i].Direction > 0.0f ? RoadSegments[currentSeg].EndNodeId : RoadSegments[currentSeg].StartNodeId;
                 
                 //find next available segment
                 int* _availableSeg = (int*)UnsafeUtility.Malloc(
