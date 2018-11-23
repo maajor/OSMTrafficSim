@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices.WindowsRuntime;
 using OSMTrafficSim.BVH;
 using Unity.Burst;
 using Unity.Collections;
@@ -54,6 +55,8 @@ namespace OSMTrafficSim
             Vector3 texel = PedestrianArea.Instance.Size / (PedestrianArea.Instance.PatchResolution * 8);
             texelSize = new float2(texel.x, texel.z);
             patchResolution = PedestrianArea.Instance.PatchResolution;
+
+            _pedestrianAnimStateConfig = TrafficConfig.Instance.PedestrianConfig.State;
         }
         protected override void OnDestroyManager()
         {
@@ -75,13 +78,14 @@ namespace OSMTrafficSim
 
             deps = senseJob.Schedule(_capacity, 64, deps);
             
-            var stateJob = new PedestrianStateMachineJob()
+            var stateJob = new PedestrianStateTransitionJob()
             {
                 PedestrianData = _pedestrianGroup.PedestrianData,
                 States = _pedestrianGroup.States,
                 StateProperty = _pedestrianGroup.StateProperty,
                 RdGen = new Random(_randSeed[(Time.frameCount % _capacity)]),
                 DeltaTime = Time.deltaTime,
+                PedestrianAnimStateConfig = _pedestrianAnimStateConfig
             };
             deps = stateJob.Schedule(_capacity, 64, deps);
 
@@ -165,13 +169,14 @@ namespace OSMTrafficSim
         }
 
         [BurstCompile]
-        struct PedestrianStateMachineJob : IJobParallelFor
+        struct PedestrianStateTransitionJob : IJobParallelFor
         {
             public ComponentDataArray<PedestrianData> PedestrianData;
             public ComponentDataArray<PedestrianState> States;
             public ComponentDataArray<InstanceRendererProperty> StateProperty;
             public Random RdGen;
             public float DeltaTime;
+            public PedestrianAnimStateConfig PedestrianAnimStateConfig;
 
             public void Execute(int index)
             {
@@ -182,28 +187,20 @@ namespace OSMTrafficSim
                     PedestrianState newstate = States[index];
                     PedestrianData newdata = PedestrianData[index];
                     InstanceRendererProperty newproperty = StateProperty[index];
-                    switch (currentState)
-                    {
-                        case 0://walking
-                            ProcessWalkState(newdata, out newstate, out newdata);
-                            break;
-                        case 1://running
-                            ProcessRunState(newdata, out newstate, out newdata);
-                            break;
-                        case 2://waiting
-                            ProcessWaitState(newdata, out newstate, out newdata);
-                            break;
-                        case 3://standing
-                            ProcessStandState(newdata, out newstate, out newdata);
-                            break;
-                        default:
-                            break;
-                    }
-                    SetAnimProperty(newproperty, newstate, out newproperty);
+
+                    int nextstate = NextState(currentState);
+
+                    newproperty.Value = PedestrianAnimStateConfig.StateFrameRange[nextstate];
+                    newstate.CoolDown = RdGen.NextFloat(
+                        PedestrianAnimStateConfig.DurationRange[nextstate].x,
+                        PedestrianAnimStateConfig.DurationRange[nextstate].y);
+                    newdata.Speed = RdGen.NextFloat(
+                        PedestrianAnimStateConfig.SpeedRange[nextstate].x,
+                        PedestrianAnimStateConfig.SpeedRange[nextstate].y);
+                    
                     StateProperty[index] = newproperty;
                     PedestrianData[index] = newdata;
                     States[index] = newstate;
-
                 }
                 else
                 {
@@ -211,138 +208,27 @@ namespace OSMTrafficSim
                 }
             }
 
-            private void ProcessWalkState(PedestrianData inputData, out PedestrianState state, out PedestrianData data)
+            //markov chain, sample from transition probability matrix
+            int NextState(int currentState)
             {
-                state = new PedestrianState();
+                int nextstate = 3;
+                float3 transitionPoss = PedestrianAnimStateConfig.TransitionProbability[currentState];
+
                 float randseed = RdGen.NextFloat();
-                if (randseed < 0.6f)//to walk again
+                if (randseed < transitionPoss.x)
                 {
-                    state.State = 0;
-                    state.CoolDown = RdGen.NextFloat(5.0f, 10.0f);
-                    inputData.Speed = RdGen.NextFloat(1.0f, 2.0f);
+                    nextstate = 0;
                 }
-                else if (randseed < 0.8f)//to wait
+                else if (randseed < transitionPoss.x + transitionPoss.y)
                 {
-                    state.State = 2;
-                    state.CoolDown = RdGen.NextFloat(5.0f, 10.0f);
-                    inputData.Speed = 0;
+                    nextstate = 1;
                 }
-                else if (randseed < 0.9f)//to run;
+                else if (randseed < transitionPoss.x + transitionPoss.y + transitionPoss.z)
                 {
-                    state.State = 1;
-                    state.CoolDown = RdGen.NextFloat(3.0f, 5.0f);
-                    inputData.Speed = RdGen.NextFloat(3.0f, 4.0f);
-                }
-                else
-                {
-                    state.State = 3;//to stand
-                    state.CoolDown = RdGen.NextFloat(5.0f, 10.0f);
-                    inputData.Speed = 0;
+                    nextstate = 2;
                 }
 
-                data = inputData;
-            }
-
-            private void ProcessRunState(PedestrianData inputData, out PedestrianState state, out PedestrianData data)
-            {
-                state = new PedestrianState();
-                float randseed = RdGen.NextFloat();
-                if (randseed < 0.3f)//to wait
-                {
-                    state.State = 2;
-                    state.CoolDown = RdGen.NextFloat(5.0f, 10.0f);
-                    inputData.Speed = 0;
-                }
-                else if (randseed < 0.8f)//to walk;
-                {
-                    state.State = 0;
-                    state.CoolDown = RdGen.NextFloat(3.0f, 5.0f);
-                    inputData.Speed = RdGen.NextFloat(1.0f, 2.0f);
-                }
-                else
-                {
-                    state.State = 3;//to stand
-                    state.CoolDown = RdGen.NextFloat(5.0f, 10.0f);
-                    inputData.Speed = 0;
-                }
-
-                data = inputData;
-            }
-
-            private void ProcessWaitState(PedestrianData inputData, out PedestrianState state, out PedestrianData data)
-            {
-                state = new PedestrianState();
-                float randseed = RdGen.NextFloat();
-                if (randseed < 0.8f)//to walk
-                {
-                    state.State = 0;
-                    state.CoolDown = RdGen.NextFloat(5.0f, 10.0f);
-                    inputData.Speed = RdGen.NextFloat(1.0f, 2.0f);
-                }
-                else if (randseed < 0.9f)//to run;
-                {
-                    state.State = 1;
-                    state.CoolDown = RdGen.NextFloat(3.0f, 5.0f);
-                    inputData.Speed = RdGen.NextFloat(3.0f, 4.0f);
-                }
-                else
-                {
-                    state.State = 3;//to stand
-                    state.CoolDown = RdGen.NextFloat(5.0f, 10.0f);
-                    inputData.Speed = 0;
-                }
-
-                data = inputData;
-            }
-
-            private void ProcessStandState(PedestrianData inputData, out PedestrianState state, out PedestrianData data)
-            {
-                state = new PedestrianState();
-                float randseed = RdGen.NextFloat();
-                if (randseed < 0.8f)//to walk
-                {
-                    state.State = 0;
-                    state.CoolDown = RdGen.NextFloat(5.0f, 10.0f);
-                    inputData.Speed = RdGen.NextFloat(1.0f, 2.0f);
-                }
-                else if (randseed < 0.9f)//to run;
-                {
-                    state.State = 1;
-                    state.CoolDown = RdGen.NextFloat(3.0f, 5.0f);
-                    inputData.Speed = RdGen.NextFloat(3.0f, 4.0f);
-                }
-                else
-                {
-                    state.State = 2;//to wait
-                    state.CoolDown = RdGen.NextFloat(5.0f, 10.0f);
-                    inputData.Speed = 0;
-                }
-
-                data = inputData;
-            }
-
-            private void SetAnimProperty(InstanceRendererProperty inputproperty, PedestrianState state, out InstanceRendererProperty property)
-            {
-                switch (state.State)
-                {
-                    case 0:
-                        inputproperty.Value = new float4(0, 25, 0, 0);
-                        break;
-                    case 1:
-                        inputproperty.Value = new float4(26, 57, 0, 0);
-                        break;
-                    case 2:
-                        inputproperty.Value = new float4(58, 330, 0, 0);
-                        break;
-                    case 3:
-                        inputproperty.Value = new float4(331, 511, 0, 0);
-                        break;
-                    default:
-                        inputproperty.Value = new float4(0, 25, 0, 0);
-                        break;
-                }
-
-                property = inputproperty;
+                return nextstate;
             }
         }
 
@@ -365,5 +251,6 @@ namespace OSMTrafficSim
 
         private NativeArray<WalkablePatch> _walkableArea;
         private NativeArray<uint> _randSeed;
+        private PedestrianAnimStateConfig _pedestrianAnimStateConfig;
     }
 }

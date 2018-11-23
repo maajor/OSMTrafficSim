@@ -41,11 +41,11 @@ namespace OSMTrafficSim
             manager.SetSharedComponentData(pedestrian, new InstanceRendererData()
             {
                 CastShadows = ShadowCastingMode.Off,
-                Material = TrafficConfig.Instance.ManMat,
-                Mesh = TrafficConfig.Instance.ManMesh,
+                Material = TrafficConfig.Instance.PedestrianConfig.ManMat,
+                Mesh = TrafficConfig.Instance.PedestrianConfig.ManMesh,
                 ReceiveShadows = false,
                 SubMesh = 0,
-                CullDistance = TrafficConfig.Instance.PedestrianCullDistance,
+                CullDistance = TrafficConfig.Instance.PedestrianConfig.PedestrianCullDistance,
                 InstanceShaderPropertyId = Shader.PropertyToID("_FrameRange")
             });
             manager.SetComponentData(pedestrian, new InstanceRendererProperty()

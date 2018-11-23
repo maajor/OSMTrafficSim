@@ -139761,9 +139761,7 @@ MonoBehaviour:
   - Prefab: {fileID: 1209480475991114, guid: 451ff3fbee3812548a7c62211bf81f2c, type: 2}
     Weight: 2
   MaxPedestrian: 10000
-  ManMesh: {fileID: 4300000, guid: 2833d6b0fcb82e641937ba85ecf35a11, type: 3}
-  ManMat: {fileID: 2100000, guid: 383f4b79351648043b57b404a34a3809, type: 2}
-  PedestrianCullDistance: 500
+  PedestrianConfig: {fileID: 11400000, guid: 5c85d56bf17d1284f958f0fc22530fea, type: 2}
 --- !u!1 &2107196558
 GameObject:
   m_ObjectHideFlags: 0

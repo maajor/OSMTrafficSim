@@ -1,0 +1,140 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 49893404d197ff241899d6c9cb1ebcee, type: 3}
+  m_Name: PedestrianConfig
+  m_EditorClassIdentifier: 
+  ManMesh: {fileID: 4300000, guid: 2833d6b0fcb82e641937ba85ecf35a11, type: 3}
+  ManMat: {fileID: 2100000, guid: 383f4b79351648043b57b404a34a3809, type: 2}
+  PedestrianCullDistance: 500
+  State:
+    StateCount: 4
+    StateFrameRange:
+      c0:
+        x: 0
+        y: 25
+        z: 0
+        w: 0
+      c1:
+        x: 26
+        y: 57
+        z: 0
+        w: 0
+      c2:
+        x: 58
+        y: 330
+        z: 0
+        w: 0
+      c3:
+        x: 331
+        y: 511
+        z: 0
+        w: 0
+    DurationRange:
+      c0:
+        x: 5
+        y: 10
+      c1:
+        x: 3
+        y: 5
+      c2:
+        x: 5
+        y: 10
+      c3:
+        x: 5
+        y: 10
+    SpeedRange:
+      c0:
+        x: 1
+        y: 2
+      c1:
+        x: 3.5
+        y: 5
+      c2:
+        x: 0
+        y: 0
+      c3:
+        x: 0
+        y: 0
+    TransitionPossibility:
+      c0:
+        x: 0.6
+        y: 0.2
+        z: 0.1
+      c1:
+        x: 0.5
+        y: 0.1
+        z: 0.3
+      c2:
+        x: 0.8
+        y: 0.1
+        z: 0.05
+      c3:
+        x: 0.8
+        y: 0.1
+        z: 0.05
+    PedestrianAnimStates:
+    - StateFrameRange:
+        x: 0
+        y: 25
+        z: 0
+        w: 0
+      DurationRange:
+        x: 5
+        y: 10
+      SpeedRange:
+        x: 1
+        y: 2
+    - StateFrameRange:
+        x: 26
+        y: 57
+        z: 0
+        w: 0
+      DurationRange:
+        x: 3
+        y: 5
+      SpeedRange:
+        x: 3.5
+        y: 5
+    - StateFrameRange:
+        x: 58
+        y: 330
+        z: 0
+        w: 0
+      DurationRange:
+        x: 5
+        y: 10
+      SpeedRange:
+        x: 0
+        y: 0
+    - StateFrameRange:
+        x: 331
+        y: 511
+        z: 0
+        w: 0
+      DurationRange:
+        x: 5
+        y: 10
+      SpeedRange:
+        x: 0
+        y: 0
+    TransitionPossibilityMatrix:
+    - 0.6
+    - 0.2
+    - 0.1
+    - 0.5
+    - 0.1
+    - 0.3
+    - 0.8
+    - 0.1
+    - 0.05
+    - 0.8
+    - 0.1
+    - 0.05
