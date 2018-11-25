@@ -4350,7 +4350,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f902ce91528bacc40abf7dd455d218e2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  bDebug: 1
+  bDebug: 0
   bDeepDebug: 0
   RefCenter: {x: 112.38, y: 34.73}
   BoundingBox:
@@ -106132,7 +106132,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!81 &534669903
 AudioListener:
   m_ObjectHideFlags: 0
@@ -119387,7 +119387,7 @@ GameObject:
   - component: {fileID: 1155745994}
   m_Layer: 0
   m_Name: Camera3
-  m_TagString: Untagged
+  m_TagString: MainCamera
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -119489,7 +119489,7 @@ Camera:
     m_Bits: 4294967295
   m_RenderingPath: -1
   m_TargetTexture: {fileID: 0}
-  m_TargetDisplay: 1
+  m_TargetDisplay: 0
   m_TargetEye: 3
   m_HDR: 1
   m_AllowMSAA: 1
@@ -119504,8 +119504,8 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 1155745993}
-  m_LocalRotation: {x: -0.3275795, y: -0.3944325, z: 0.15295811, w: -0.8448187}
-  m_LocalPosition: {x: 8096.5923, y: 54.921555, z: -6378.3315}
+  m_LocalRotation: {x: 0.29356858, y: 0.23210528, z: -0.07373775, w: 0.92439574}
+  m_LocalPosition: {x: 7627.1226, y: 31.448303, z: -7466.76}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
@@ -124602,7 +124602,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!81 &1383828415
 AudioListener:
   m_ObjectHideFlags: 0

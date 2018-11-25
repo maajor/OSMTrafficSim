@@ -6,6 +6,8 @@
 /[Bb]in/
 /Assets/AssetStoreTools*
 /ArtSource
+/Assets/Unity Recorder/
+/Assets/Unity Recorder.meta
 
 # Visual Studio 2015 cache directory
 /.vs/
