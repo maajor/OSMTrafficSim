@@ -46,8 +46,8 @@ namespace OSMTrafficSim
             param = new Vector4[1023];
             transforms = new Matrix4x4[1023];
 
-            matrices = new NativeArray<float4x4>(1023, Allocator.Temp);
-            propertyParams = new NativeArray<float4>(1023, Allocator.Temp);
+            matrices = new NativeArray<float4x4>(1023, Allocator.Persistent);
+            propertyParams = new NativeArray<float4>(1023, Allocator.Persistent);
             propertyBlock = new MaterialPropertyBlock();
             cb = new CommandBuffer();
         }
