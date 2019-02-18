@@ -15,7 +15,7 @@ namespace OSMTrafficSim.BVH
             int mortonCodeLength = Utils.GetNextHighestPowerOf2(Utils.ceil_pow2(_capacity));
             mortonCodes = new NativeArray<uint>(mortonCodeLength, Allocator.Persistent);
             indexConverter = new NativeArray<int>(mortonCodeLength, Allocator.Persistent);
-            bounds = new NativeArray<AABB>(8, Allocator.Persistent);
+            bounds = new NativeArray<BVHAABB>(8, Allocator.Persistent);
 
             int requiredBVHLength = (Utils.GetNextHighestPowerOf2(Utils.ceil_pow2(_capacity) + 1)) - 1;
 
@@ -34,9 +34,9 @@ namespace OSMTrafficSim.BVH
         private NativeArray<uint> mortonCodes;
         private NativeArray<int> indexConverter;
         private NativeArray<int> parentIndex;
-        private NativeArray<AABB> bounds;
+        private NativeArray<BVHAABB> bounds;
 
-        public JobHandle Calculate(JobHandle deps, ComponentDataArray<AABB> AABB)
+        public JobHandle Calculate(JobHandle deps, ComponentDataArray<BVHAABB> AABB)
         {
             var computeBound = new CalculateBoundsJob()
             {

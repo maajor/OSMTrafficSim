@@ -5,11 +5,11 @@ using Unity.Mathematics;
 namespace OSMTrafficSim.BVH
 {
     [Serializable]
-    public struct AABB : IComponentData
+    public struct BVHAABB : IComponentData
     {
         public float3 Min;
         public float3 Max;
     }
 
-    public class AABBComponent : ComponentDataWrapper<AABB> { }
+    public class AABBComponent : ComponentDataWrapper<BVHAABB> { }
 }

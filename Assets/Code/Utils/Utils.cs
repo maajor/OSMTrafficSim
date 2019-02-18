@@ -85,7 +85,7 @@ namespace OSMTrafficSim
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool AABBToAABBOverlap(AABB a, AABB b)
+        public static bool AABBToAABBOverlap(BVHAABB a, BVHAABB b)
         {
             return (a.Min.x <= b.Max.x && a.Max.x >= b.Min.x) &&
                    (a.Min.z <= b.Max.z && a.Max.z >= b.Min.z) &&
@@ -93,9 +93,9 @@ namespace OSMTrafficSim
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static AABB GetEncompassingAABB(AABB a, AABB b)
+        public static BVHAABB GetEncompassingAABB(BVHAABB a, BVHAABB b)
         {
-            AABB returnAABB = new AABB();
+            BVHAABB returnAABB = new BVHAABB();
 
             returnAABB.Min = math.min(a.Min, b.Min);
             returnAABB.Max = math.max(a.Max, b.Max);
@@ -103,7 +103,7 @@ namespace OSMTrafficSim
             return returnAABB;
         }
 
-        public static void GrowAABB(ref AABB sourceAABB, float3 includePoint)
+        public static void GrowAABB(ref BVHAABB sourceAABB, float3 includePoint)
         {
             sourceAABB.Min.x = math.min(sourceAABB.Min.x, includePoint.x);
             sourceAABB.Min.y = math.min(sourceAABB.Min.y, includePoint.y);
@@ -114,7 +114,7 @@ namespace OSMTrafficSim
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float3 GetAABBCenter(AABB aabb)
+        public static float3 GetAABBCenter(BVHAABB aabb)
         {
             return (aabb.Min + aabb.Max) * 0.5f;
         }

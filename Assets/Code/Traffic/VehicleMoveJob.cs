@@ -34,7 +34,7 @@ namespace OSMTrafficSim
         [NativeDisableContainerSafetyRestriction]
         public ComponentDataArray<VehicleData> VehicleData;
 
-        public ComponentDataArray<AABB> AABB;
+        public ComponentDataArray<BVHAABB> AABB;
 
         public Bounds BoundingBox;
 
@@ -80,7 +80,7 @@ namespace OSMTrafficSim
                     50.0f
                 );
 
-                AABB newAABB = AABB[i];
+                BVHAABB newAABB = AABB[i];
                 newAABB.Max += (nextPos - currentPos);
                 newAABB.Min += (nextPos - currentPos);
                 AABB[i] = newAABB;
@@ -166,7 +166,7 @@ namespace OSMTrafficSim
                     newDistanceAhead
                     );
 
-                AABB newAABB = AABB[i];
+                BVHAABB newAABB = AABB[i];
                 newAABB.Max += currentDir * stepLength;
                 newAABB.Min += currentDir * stepLength;
                 AABB[i] = newAABB;
@@ -235,7 +235,7 @@ namespace OSMTrafficSim
                     newDistanceAhead
                 );
 
-                AABB newAABB = AABB[i];
+                BVHAABB newAABB = AABB[i];
                 newAABB.Max += (nextPos - currentPos);
                 newAABB.Min += (nextPos - currentPos);
                 AABB[i] = newAABB;

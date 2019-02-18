@@ -7,7 +7,6 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Rendering;
 using Unity.Transforms;
 using UnityEditor.Experimental.UIElements.GraphView;
 using UnityEditor.VersionControl;

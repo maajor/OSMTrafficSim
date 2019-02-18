@@ -14,7 +14,7 @@ namespace OSMTrafficSim.BVH
             BVHNode bvhNode = BVHArray[i];
             bvhNode.IsValid = 0;
             bvhNode.ParentNodeIndex = -1;
-            bvhNode.aabb = new AABB();
+            bvhNode.aabb = new BVHAABB();
             BVHArray[i] = bvhNode;
         }
     }

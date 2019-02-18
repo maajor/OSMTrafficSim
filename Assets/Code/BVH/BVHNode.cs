@@ -1,8 +1,10 @@
-﻿namespace OSMTrafficSim.BVH
+﻿using Unity.Mathematics;
+
+namespace OSMTrafficSim.BVH
 {
     public struct BVHNode
     {
-        public AABB aabb;
+        public BVHAABB aabb;
         public int EntityId;
         public int LeftNodeIndex;
         public int RightNodeIndex;

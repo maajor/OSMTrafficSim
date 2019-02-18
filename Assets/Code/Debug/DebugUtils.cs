@@ -14,7 +14,7 @@ namespace OSMTrafficSim
 {
     public class DebugUtils
     { 
-        public static void DrawAABB(AABB aabb, Color color)
+        public static void DrawAABB(BVHAABB aabb, Color color)
         {
             Debug.DrawLine(new Vector3(aabb.Min.x, aabb.Min.y, aabb.Min.z), new Vector3(aabb.Max.x, aabb.Min.y, aabb.Min.z), color);
             Debug.DrawLine(new Vector3(aabb.Max.x, aabb.Min.y, aabb.Min.z), new Vector3(aabb.Max.x, aabb.Min.y, aabb.Max.z), color);

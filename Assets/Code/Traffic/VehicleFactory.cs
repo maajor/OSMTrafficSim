@@ -24,7 +24,7 @@ namespace OSMTrafficSim
         public static void Init(EntityManager manager)
         {
             _vehicleArchetype = manager.CreateArchetype(typeof(VehicleData), typeof(Position), typeof(Rotation),
-                typeof(HitResult), typeof(MeshInstanceRenderer), typeof(AABB));
+                typeof(HitResult), typeof(RenderMesh), typeof(BVHAABB));
             _vehicleCount = 0;
 
             RoadGraph.Instance.InitRandom();
@@ -95,8 +95,8 @@ namespace OSMTrafficSim
             manager.SetComponentData(car, new Position() { Value = pos });
             manager.SetComponentData(car, new Rotation() { Value = rot });
             manager.SetComponentData(car, new HitResult() { HitResultPacked = 0, FrontHitDistance = 50.0f });
-            manager.SetComponentData(car, new AABB() { Min = pos - _bounds[templateId], Max =  pos + _bounds[templateId] });
-            manager.SetSharedComponentData(car, new MeshInstanceRenderer()
+            manager.SetComponentData(car, new BVHAABB() { Min = pos - _bounds[templateId], Max =  pos + _bounds[templateId] });
+            manager.SetSharedComponentData(car, new RenderMesh()
             {
                 castShadows = ShadowCastingMode.Off,
                 material = _templateMaterial[templateId],

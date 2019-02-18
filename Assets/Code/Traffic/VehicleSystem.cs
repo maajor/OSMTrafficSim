@@ -17,7 +17,7 @@ namespace OSMTrafficSim
             public readonly int Length;
             public EntityArray Entity;
             public ComponentDataArray<VehicleData> VehicleData;
-            public ComponentDataArray<AABB> AABB;
+            public ComponentDataArray<BVHAABB> AABB;
             public ComponentDataArray<Position> Position;
             public ComponentDataArray<Rotation> Rotation;
             public ComponentDataArray<HitResult> HitResult;

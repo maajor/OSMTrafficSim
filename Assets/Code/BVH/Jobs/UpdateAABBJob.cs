@@ -18,7 +18,7 @@ namespace OSMTrafficSim.BVH
 
             int halfLength = BVHArray.Length / 2;
             int leafNodeId = halfLength + i;
-            AABB leafNodeAABB = BVHArray[leafNodeId].aabb;
+            BVHAABB leafNodeAABB = BVHArray[leafNodeId].aabb;
             int parentIndex = BVHArray[leafNodeId].ParentNodeIndex;
             while (parentIndex != -1)
             {
@@ -47,7 +47,7 @@ namespace OSMTrafficSim.BVH
         {
             int halfLength = BVHArray.Length / 2;
             int leafNodeId = halfLength + i;
-            AABB leafNodeAABB = BVHArray[leafNodeId].aabb;
+            BVHAABB leafNodeAABB = BVHArray[leafNodeId].aabb;
             int parentIndex = BVHArray[leafNodeId].ParentNodeIndex;
             while (parentIndex != -1)
             {

@@ -17,11 +17,11 @@ namespace OSMTrafficSim.BVH
     [BurstCompile]
     public struct CalculateBoundsJob : IJobParallelFor
     {
-        [WriteOnly] public NativeArray<AABB> results;
+        [WriteOnly] public NativeArray<BVHAABB> results;
 
         [NativeDisableParallelForRestriction]
         [ReadOnly]
-        public ComponentDataArray<AABB> AABB;
+        public ComponentDataArray<BVHAABB> AABB;
 
         public int batchSize;
 
@@ -29,7 +29,7 @@ namespace OSMTrafficSim.BVH
         {
             int start = i * batchSize;
             int end = (i + 1) * batchSize > AABB.Length ? AABB.Length : (i + 1) * batchSize;
-            AABB startAABB = AABB[start];
+            BVHAABB startAABB = AABB[start];
             for (int k = start + 1; k < end; k++)
             {
                 startAABB = Utils.GetEncompassingAABB(startAABB, AABB[k]);
@@ -41,11 +41,11 @@ namespace OSMTrafficSim.BVH
     [BurstCompile]
     public struct CalculateBoundsMergedJob : IJob
     {
-        public NativeArray<AABB> results;
+        public NativeArray<BVHAABB> results;
 
         public void Execute()
         {
-            AABB startAABB = results[0];
+            BVHAABB startAABB = results[0];
 
             for (int i = 1; i < results.Length; i++)
             {
