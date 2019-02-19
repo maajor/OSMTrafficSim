@@ -11,20 +11,9 @@ namespace OSMTrafficSim
 {
     public class VehicleSystem : JobComponentSystem
     {
-
-        struct VehicleGroup
-        {
-            public readonly int Length;
-            public EntityArray Entity;
-            public ComponentDataArray<VehicleData> VehicleData;
-            public ComponentDataArray<BVHAABB> AABB;
-            public ComponentDataArray<Position> Position;
-            public ComponentDataArray<Rotation> Rotation;
-            public ComponentDataArray<HitResult> HitResult;
-        }
-        [Inject] VehicleGroup _vehicleGroup;
-        [Inject] RoadSegmentGroup _roadSegmentGroup;
-        [Inject] RoadNodeGroup _roadNodeGroup;
+        private ComponentGroup _vehicleGroup;
+        private ComponentGroup _roadSegmentGroup;
+        private ComponentGroup _roadNodeGroup;
 
         private int Capacity = 1024;
 
@@ -46,6 +35,10 @@ namespace OSMTrafficSim
             _bound = RoadGraph.Instance.BoundingBox;
 
             _BVH = new BVHConstructor(Capacity);
+
+            _vehicleGroup = GetComponentGroup(typeof(VehicleData), typeof(BVHAABB), typeof(Position), typeof(Rotation), typeof(HitResult));
+            _roadSegmentGroup = GetComponentGroup(typeof(RoadSegment));
+            _roadNodeGroup = GetComponentGroup(typeof(RoadNode));
         }
         protected override void OnDestroyManager()
         {
@@ -55,13 +48,17 @@ namespace OSMTrafficSim
 
         protected override JobHandle OnUpdate(JobHandle deps)
         {
-            deps = _BVH.Calculate(deps, _vehicleGroup.AABB);
+            var vehicleAABB = _vehicleGroup.GetComponentDataArray<BVHAABB>();
+            var vehicleData = _vehicleGroup.GetComponentDataArray<VehicleData>();
+            var vehicleHitresult = _vehicleGroup.GetComponentDataArray<HitResult>();
+
+            deps = _BVH.Calculate(deps, vehicleAABB);
 
             var senseJob = new SenseEnvironmentJob()
             {
-                VehicleData = _vehicleGroup.VehicleData,
+                VehicleData = vehicleData,
                 BVHArray = _BVH.BVHArray,
-                HitResult = _vehicleGroup.HitResult,
+                HitResult = vehicleHitresult,
                 HalfBVHArrayLength = _BVH.BVHArray.Length / 2,
             };
 
@@ -69,13 +66,13 @@ namespace OSMTrafficSim
 
             var vehicleMoveJob = new VehicleMoveJob()
             {
-                Positions = _vehicleGroup.Position,
-                Rotations = _vehicleGroup.Rotation,
-                VehicleData = _vehicleGroup.VehicleData,
-                RoadNodes = _roadNodeGroup.RoadNodes,
-                RoadSegments = _roadSegmentGroup.RoadSegments,
-                HitResult = _vehicleGroup.HitResult,
-                AABB = _vehicleGroup.AABB,
+                Positions = _vehicleGroup.GetComponentDataArray<Position>(),
+                Rotations = _vehicleGroup.GetComponentDataArray<Rotation>(),
+                VehicleData = vehicleData,
+                RoadNodes = _roadNodeGroup.GetComponentDataArray<RoadNode>(),
+                RoadSegments = _roadSegmentGroup.GetComponentDataArray<RoadSegment>(),
+                HitResult = vehicleHitresult,
+                AABB = vehicleAABB,
                 FrameSeed = (uint)Time.frameCount,
                 DeltaTime = Time.deltaTime,
                 BoundingBox = _bound,

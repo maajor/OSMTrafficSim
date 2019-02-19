@@ -11,9 +11,6 @@ namespace OSMTrafficSim
     [UpdateBefore(typeof(VehicleSystem))]
     public class TrafficLightSystem : JobComponentSystem
     {
-        [Inject] private RoadSegmentGroup _roadSegmentGroup;
-        [Inject] private RoadNodeGroup _roadNodeGroup;
-
         protected override void OnCreateManager()
         {
             var _roadNodeArchetype = EntityManager.CreateArchetype(typeof(RoadNode));
@@ -34,28 +31,25 @@ namespace OSMTrafficSim
         {
             var trafficLight = new TrafficLightJob()
             {
-                RoadNodes = _roadNodeGroup.RoadNodes,
                 DeltaTime = Time.deltaTime
             };
-            return trafficLight.Schedule(_roadNodeGroup.RoadNodes.Length, 32, deps);
+            return trafficLight.Schedule(this, deps);
         }
         
         [BurstCompile]
-        public struct TrafficLightJob : IJobParallelFor
+        public struct TrafficLightJob : IJobProcessComponentData<RoadNode>
         {
-            public ComponentDataArray<RoadNode> RoadNodes;
             public float DeltaTime;
 
-            public void Execute(int index)
+            public void Execute(ref RoadNode roadnode)
             {
-                RoadNode currentnode = RoadNodes[index];
-                float newCd = currentnode.CountDown - DeltaTime;
+                float newCd = roadnode.CountDown - DeltaTime;
                 if (newCd < 0)
                 {
                     newCd = 20.0f;
-                    int nextConnect = (currentnode.ActiveConnection + 1) % 3;
+                    int nextConnect = (roadnode.ActiveConnection + 1) % 3;
                     int count = 0;
-                    while (currentnode.ConnectionSegIds[nextConnect].x == -1 && currentnode.ConnectionSegIds[nextConnect].y == -1)
+                    while (roadnode.ConnectionSegIds[nextConnect].x == -1 && roadnode.ConnectionSegIds[nextConnect].y == -1)
                     {
                         if (count > 3)
                         {
@@ -65,11 +59,10 @@ namespace OSMTrafficSim
                         nextConnect = (nextConnect + 1) % 3;
                         count++;
                     }
-                    currentnode.ActiveConnection = nextConnect;
+                    roadnode.ActiveConnection = nextConnect;
                 }
 
-                currentnode.CountDown = newCd;
-                RoadNodes[index] = currentnode;
+                roadnode.CountDown = newCd;
             }
         }
     }

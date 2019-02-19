@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices.WindowsRuntime;
+﻿using System.Runtime.CompilerServices;
 using OSMTrafficSim.BVH;
 using Unity.Burst;
 using Unity.Collections;
@@ -8,8 +6,6 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
-using UnityEditor.Experimental.UIElements.GraphView;
-using UnityEditor.VersionControl;
 using UnityEngine;
 using Random = Unity.Mathematics.Random;
 using WalkablePatch = System.UInt64;
@@ -19,16 +15,6 @@ namespace OSMTrafficSim
 
     public class PedestrianSystem : JobComponentSystem
     {
-        struct PedestrianGroup
-        {
-            public ComponentDataArray<PedestrianData> PedestrianData;
-            public ComponentDataArray<Position> Position;
-            public ComponentDataArray<Rotation> Rotation;
-            public ComponentDataArray<PedestrianState> States;
-            public ComponentDataArray<InstanceRendererProperty> StateProperty;
-        }
-        [Inject] PedestrianGroup _pedestrianGroup;
-
         private int _capacity = 1024;
 
         private float2 texelSize;
@@ -56,6 +42,7 @@ namespace OSMTrafficSim
             patchResolution = PedestrianArea.Instance.PatchResolution;
 
             _pedestrianAnimStateConfig = TrafficConfig.Instance.PedestrianConfig.State;
+
         }
         protected override void OnDestroyManager()
         {
@@ -68,55 +55,43 @@ namespace OSMTrafficSim
             var senseJob = new PedestrianMoveCheckJob()
             {
                 WalkableArea = _walkableArea,
-                PedestrianData = _pedestrianGroup.PedestrianData,
                 TexelSize = texelSize,
                 PatchResolution = patchResolution,
                 DeltaTime = Time.deltaTime,
                 RdGen = new Random(_randSeed[(Time.frameCount % _capacity)])
             };
 
-            deps = senseJob.Schedule(_capacity, 64, deps);
+            deps = senseJob.Schedule(this, deps);
             
             var stateJob = new PedestrianStateTransitionJob()
             {
-                PedestrianData = _pedestrianGroup.PedestrianData,
-                States = _pedestrianGroup.States,
-                StateProperty = _pedestrianGroup.StateProperty,
                 RdGen = new Random(_randSeed[(Time.frameCount % _capacity)]),
                 DeltaTime = Time.deltaTime,
                 PedestrianAnimStateConfig = _pedestrianAnimStateConfig
             };
-            deps = stateJob.Schedule(_capacity, 64, deps);
+            deps = stateJob.Schedule(this, deps);
 
-            var moveJob = new PedestrianMoveJob()
-            {
-                Positions = _pedestrianGroup.Position,
-                Rotations = _pedestrianGroup.Rotation,
-                PedestrianData = _pedestrianGroup.PedestrianData
-            };
-            deps = moveJob.Schedule(_capacity, 64, deps);
+            var moveJob = new PedestrianMoveJob();
+            deps = moveJob.Schedule(this, deps);
 
             return deps;
         }
 
         [BurstCompile]
-        struct PedestrianMoveCheckJob : IJobParallelFor
+        struct PedestrianMoveCheckJob : IJobProcessComponentData<PedestrianData>
         {
             public float DeltaTime;
 
             [ReadOnly]
             [NativeDisableParallelForRestriction]
             public NativeArray<ulong> WalkableArea;
-            
-            public ComponentDataArray<PedestrianData> PedestrianData;
 
             public float2 TexelSize;
             public int PatchResolution;
             public Random RdGen;
 
-            public void Execute(int index)
+            public void Execute(ref PedestrianData thisPed)
             {
-                PedestrianData thisPed = PedestrianData[index];
                 float rotateAngle = RdGen.NextFloat(-0.01f, 0.01f);
                 float cos = math.cos(rotateAngle);
                 float sin = math.sin(rotateAngle);
@@ -141,7 +116,6 @@ namespace OSMTrafficSim
                 thisPed.WorldPos = newWorldPos;
                 thisPed.LocalPos = newLocalPos;
                 thisPed.GridId = newGridId;
-                PedestrianData[index] = thisPed;
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -168,42 +142,31 @@ namespace OSMTrafficSim
         }
 
         [BurstCompile]
-        struct PedestrianStateTransitionJob : IJobParallelFor
+        struct PedestrianStateTransitionJob : IJobProcessComponentData<PedestrianData, PedestrianState, InstanceRendererProperty>
         {
-            public ComponentDataArray<PedestrianData> PedestrianData;
-            public ComponentDataArray<PedestrianState> States;
-            public ComponentDataArray<InstanceRendererProperty> StateProperty;
             public Random RdGen;
             public float DeltaTime;
             public PedestrianAnimStateConfig PedestrianAnimStateConfig;
 
-            public void Execute(int index)
+            public void Execute(ref PedestrianData data, ref PedestrianState state, ref InstanceRendererProperty property)
             {
-                int currentState = States[index].State;
-                float cd = States[index].CoolDown - DeltaTime;
+                int currentState = state.State;
+                float cd = state.CoolDown - DeltaTime;
                 if (cd < 0)
                 {
-                    PedestrianState newstate = States[index];
-                    PedestrianData newdata = PedestrianData[index];
-                    InstanceRendererProperty newproperty = StateProperty[index];
-
                     int nextstate = NextState(currentState);
 
-                    newproperty.Value = PedestrianAnimStateConfig.StateFrameRange[nextstate];
-                    newstate.CoolDown = RdGen.NextFloat(
+                    property.Value = PedestrianAnimStateConfig.StateFrameRange[nextstate];
+                    state.CoolDown = RdGen.NextFloat(
                         PedestrianAnimStateConfig.DurationRange[nextstate].x,
                         PedestrianAnimStateConfig.DurationRange[nextstate].y);
-                    newdata.Speed = RdGen.NextFloat(
+                    data.Speed = RdGen.NextFloat(
                         PedestrianAnimStateConfig.SpeedRange[nextstate].x,
                         PedestrianAnimStateConfig.SpeedRange[nextstate].y);
-                    
-                    StateProperty[index] = newproperty;
-                    PedestrianData[index] = newdata;
-                    States[index] = newstate;
                 }
                 else
                 {
-                    States[index] = new PedestrianState() {CoolDown = cd, State = currentState};
+                    state = new PedestrianState() {CoolDown = cd, State = currentState};
                 }
             }
 
@@ -232,19 +195,12 @@ namespace OSMTrafficSim
         }
 
         [BurstCompile]
-        struct PedestrianMoveJob : IJobParallelFor
+        struct PedestrianMoveJob : IJobProcessComponentData<Position,Rotation,PedestrianData>
         {
-            [WriteOnly]
-            public ComponentDataArray<Position> Positions;
-            [WriteOnly]
-            public ComponentDataArray<Rotation> Rotations;
-            [ReadOnly]
-            public ComponentDataArray<PedestrianData> PedestrianData;
-            
-            public void Execute(int index)
+            public void Execute([WriteOnly] ref Position position, [WriteOnly] ref Rotation rotation, [ReadOnly] ref PedestrianData data)
             {
-                Positions[index] = new Position() {Value = PedestrianData[index].WorldPos};
-                Rotations[index] = new Rotation() { Value = quaternion.LookRotation(PedestrianData[index].Forword, new float3(0,1,0))};
+                position = new Position() {Value = data.WorldPos};
+                rotation = new Rotation() { Value = quaternion.LookRotation(data.Forword, new float3(0,1,0))};
             }
         }
 
