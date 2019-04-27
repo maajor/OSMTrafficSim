@@ -23,7 +23,7 @@ namespace OSMTrafficSim
         public int InstanceShaderPropertyId;
     }
 
-    public class InstanceRendererComponent : SharedComponentDataWrapper<InstanceRendererData>
+    public class InstanceRendererComponent : SharedComponentDataProxy<InstanceRendererData>
     {
     }
 }

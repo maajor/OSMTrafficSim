@@ -19,10 +19,11 @@ namespace OSMTrafficSim
 
         public static void Init(EntityManager manager)
         {
-            _pedestrianArchetype = manager.CreateArchetype(typeof(PedestrianData), typeof(Position), typeof(Rotation),
-                 typeof(InstanceRendererData), typeof(InstanceRendererProperty), typeof(PedestrianState));
+            _pedestrianArchetype = manager.CreateArchetype(typeof(PedestrianData), typeof(Translation), typeof(Rotation),
+                 typeof(InstanceRendererData), typeof(InstanceRendererProperty), typeof(PedestrianState), typeof(LocalToWorld));
             _pedestrianCount = 0;
             PedestrianArea.Instance.InitRandom();
+
         }
 
         public static Entity AddPedestrian(EntityManager manager)
@@ -36,7 +37,7 @@ namespace OSMTrafficSim
             var pedestrian = manager.CreateEntity(_pedestrianArchetype);
 
             manager.SetComponentData(pedestrian, new PedestrianData(){ Forword = forward, LocalPos = localpos, Speed = speed, WorldPos = pos, GridId = gridid });
-            manager.SetComponentData(pedestrian, new Position() { Value = pos });
+            manager.SetComponentData(pedestrian, new Translation() { Value = pos });
             manager.SetComponentData(pedestrian, new Rotation() { Value = rot });
             manager.SetSharedComponentData(pedestrian, new InstanceRendererData()
             {
@@ -54,6 +55,7 @@ namespace OSMTrafficSim
                 Value = new float4(26, 58, 0, 0)
             });
             manager.SetComponentData(pedestrian, new PedestrianState(){ State = 0 });
+            manager.SetComponentData(pedestrian, new LocalToWorld() { Value = Matrix4x4.TRS(pos, rot, Vector3.one) });
 
             _pedestrianCount++;
             return pedestrian;

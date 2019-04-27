@@ -26,12 +26,12 @@ namespace OSMTrafficSim
         }
     }
 
-    public class RoadNodeComponent : ComponentDataWrapper<RoadNode>
+    public class RoadNodeComponent : ComponentDataProxy<RoadNode>
     {
     }
-
+    /*
     public struct RoadNodeGroup
     {
         public ComponentDataArray<RoadNode> RoadNodes;
-    }
+    }*/
 }

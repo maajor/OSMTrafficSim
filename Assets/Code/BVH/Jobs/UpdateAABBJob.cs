@@ -10,8 +10,8 @@ namespace OSMTrafficSim.BVH
     {
         [NativeDisableParallelForRestriction] public NativeArray<BVHNode> BVHArray;
 
-        [NativeDisableUnsafePtrRestriction]
-        public long* locks;
+        //[NativeDisableUnsafePtrRestriction]
+        //public long* locks;
 
         public void Execute(int i)
         {

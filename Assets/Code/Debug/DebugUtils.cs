@@ -32,7 +32,7 @@ namespace OSMTrafficSim
             Debug.DrawLine(new Vector3(aabb.Min.x, aabb.Max.y, aabb.Max.z), new Vector3(aabb.Min.x, aabb.Max.y, aabb.Min.z), color);
         }
 
-        public static void DebugConnection(ComponentDataArray<Position> pos, ComponentDataArray<HitResult> hitresult)
+        public static void DebugConnection(NativeArray<Translation> pos, NativeArray<HitResult> hitresult)
         {
             for (int i = 0; i < pos.Length; i++)
             {
@@ -139,7 +139,7 @@ namespace OSMTrafficSim
             }
         }
 
-        [MenuItem("OSMTrafficSim/DebugCLZ")]
+        /*[MenuItem("OSMTrafficSim/DebugCLZ")]
         private static void DebugClz()
         {
             Random rd = new Random((uint)DateTime.Now.Millisecond);
@@ -154,7 +154,7 @@ namespace OSMTrafficSim
                 uint clz_calc = clz(rand1, rand2);
                 Debug.Assert(clz_calc == clz_true);
             }
-        }
+        }*/
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static uint clz(uint x, uint y)

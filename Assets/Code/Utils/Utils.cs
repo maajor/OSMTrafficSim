@@ -8,6 +8,7 @@ using Random = Unity.Mathematics.Random;
 using OSMTrafficSim.BVH;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Jobs.LowLevel.Unsafe;
 
 namespace OSMTrafficSim
 {
@@ -165,6 +166,19 @@ namespace OSMTrafficSim
                 float4* sourceMatrices = (float4*)param.GetUnsafeReadOnlyPtr();
                 UnsafeUtility.MemCpy(resultMatrices, sourceMatrices, UnsafeUtility.SizeOf<Vector4>() * param.Length);
             }
+        }
+
+        //Thanks to ajaxlex for his approach to generate random in jobs
+        //https://github.com/maajor/OSMTrafficSim/issues/2#issuecomment-476347055
+        public static NativeArray<Random> GetRandomizerPerThread()
+        {
+            var randomizers = new NativeArray<Random>(JobsUtility.MaxJobThreadCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+            for (int i = 0; i < JobsUtility.MaxJobThreadCount; i++)
+            {
+                randomizers[i] = new Random((uint)UnityEngine.Random.Range(int.MinValue, int.MaxValue));
+            }
+
+            return randomizers;
         }
     }
 }

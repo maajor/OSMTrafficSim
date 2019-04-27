@@ -15,7 +15,7 @@ namespace OSMTrafficSim.BVH
         public float4 Value;
     }
 
-    public class InstanceRendererPropertyComponent : ComponentDataWrapper<InstanceRendererProperty>
+    public class InstanceRendererPropertyComponent : ComponentDataProxy<InstanceRendererProperty>
     {
     }
 }

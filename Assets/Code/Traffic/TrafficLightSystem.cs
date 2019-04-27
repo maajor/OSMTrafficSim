@@ -37,7 +37,7 @@ namespace OSMTrafficSim
         }
         
         [BurstCompile]
-        public struct TrafficLightJob : IJobProcessComponentData<RoadNode>
+        public struct TrafficLightJob : IJobForEach<RoadNode>
         {
             public float DeltaTime;
 

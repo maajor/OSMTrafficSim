@@ -7,6 +7,7 @@ using UnityEngine.Experimental.Rendering;
 
 namespace OSMTrafficSim
 {
+    [UpdateInGroup(typeof(PresentationSystemGroup))]
     public class InstanceRendererBootstrap : ComponentSystem {
 
         InstanceRenderingSystem instanceRendererSystem;
@@ -15,7 +16,7 @@ namespace OSMTrafficSim
         {
             RenderPipeline.beginCameraRendering += OnBeforeCull;
             Camera.onPreCull += OnBeforeCull;
-            instanceRendererSystem = this.World.GetOrCreateManager<InstanceRenderingSystem>();
+            instanceRendererSystem = this.World.GetOrCreateSystem<InstanceRenderingSystem>();
         }
 
         protected override void OnUpdate()

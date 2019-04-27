@@ -17,7 +17,7 @@ namespace OSMTrafficSim
         public int2 GridId;
     }
 
-    public class PedestrianComponent : ComponentDataWrapper<PedestrianData>
+    public class PedestrianComponent : ComponentDataProxy<PedestrianData>
     {
     }
 
@@ -28,7 +28,7 @@ namespace OSMTrafficSim
         public float CoolDown;
     }
 
-    public class PedestrianStateComponent : ComponentDataWrapper<PedestrianState>
+    public class PedestrianStateComponent : ComponentDataProxy<PedestrianState>
     {
     }
 }

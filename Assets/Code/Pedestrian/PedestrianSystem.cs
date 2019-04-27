@@ -2,6 +2,7 @@
 using OSMTrafficSim.BVH;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -17,9 +18,7 @@ namespace OSMTrafficSim
     {
         private int _capacity = 1024;
 
-        private float2 texelSize;
-        private int patchResolution;
-
+        #region Component System Interface
         protected override void OnCreateManager()
         {
             _capacity = TrafficConfig.Instance.MaxPedestrian;
@@ -33,13 +32,11 @@ namespace OSMTrafficSim
             _walkableArea = new NativeArray<ulong>(PedestrianArea.Instance.WalkableArea.Count, Allocator.Persistent);
             _walkableArea.CopyFrom(PedestrianArea.Instance.WalkableArea.ToArray());
 
-            var seeds = Utils.GetRandomSeed(_capacity);
-            _randSeed = new NativeArray<uint>(seeds, Allocator.Persistent);
-            _randSeed.CopyFrom(seeds);
-
             Vector3 texel = PedestrianArea.Instance.Size / (PedestrianArea.Instance.PatchResolution * 8);
             texelSize = new float2(texel.x, texel.z);
             patchResolution = PedestrianArea.Instance.PatchResolution;
+
+            _rdGens = Utils.GetRandomizerPerThread();
 
             _pedestrianAnimStateConfig = TrafficConfig.Instance.PedestrianConfig.State;
 
@@ -47,9 +44,8 @@ namespace OSMTrafficSim
         protected override void OnDestroyManager()
         {
             _walkableArea.Dispose();
-            _randSeed.Dispose();
+            _rdGens.Dispose();
         }
-
         protected override JobHandle OnUpdate(JobHandle deps)
         {
             var senseJob = new PedestrianMoveCheckJob()
@@ -58,27 +54,37 @@ namespace OSMTrafficSim
                 TexelSize = texelSize,
                 PatchResolution = patchResolution,
                 DeltaTime = Time.deltaTime,
-                RdGen = new Random(_randSeed[(Time.frameCount % _capacity)])
+                RdGens = _rdGens
             };
 
             deps = senseJob.Schedule(this, deps);
             
             var stateJob = new PedestrianStateTransitionJob()
             {
-                RdGen = new Random(_randSeed[(Time.frameCount % _capacity)]),
+                RdGens = _rdGens,
                 DeltaTime = Time.deltaTime,
                 PedestrianAnimStateConfig = _pedestrianAnimStateConfig
             };
             deps = stateJob.Schedule(this, deps);
 
             var moveJob = new PedestrianMoveJob();
-            deps = moveJob.Schedule(this, deps);
-
+            deps = moveJob.Schedule(this,deps);
+            
             return deps;
         }
+        #endregion
 
+        #region Private Fields
+        private float2 texelSize;
+        private int patchResolution;
+        private NativeArray<Unity.Mathematics.Random> _rdGens;
+        private NativeArray<WalkablePatch> _walkableArea;
+        private PedestrianAnimStateConfig _pedestrianAnimStateConfig;
+        #endregion
+
+        #region Jobs In This System
         [BurstCompile]
-        struct PedestrianMoveCheckJob : IJobProcessComponentData<PedestrianData>
+        struct PedestrianMoveCheckJob : IJobForEach<PedestrianData>
         {
             public float DeltaTime;
 
@@ -88,11 +94,18 @@ namespace OSMTrafficSim
 
             public float2 TexelSize;
             public int PatchResolution;
-            public Random RdGen;
+
+            #pragma warning disable CS0649
+            [NativeSetThreadIndex]
+            int threadId;
+
+            [NativeDisableParallelForRestriction]
+            public NativeArray<Unity.Mathematics.Random> RdGens;
 
             public void Execute(ref PedestrianData thisPed)
             {
-                float rotateAngle = RdGen.NextFloat(-0.01f, 0.01f);
+                var threadRandom = RdGens[threadId];
+                float rotateAngle = threadRandom.NextFloat(-0.01f, 0.01f);
                 float cos = math.cos(rotateAngle);
                 float sin = math.sin(rotateAngle);
                 float3 newDir = new float3(){ x = thisPed.Forword.x * cos - thisPed.Forword.z * sin, y = 0, z = thisPed.Forword.x * sin + thisPed.Forword.z * cos};
@@ -116,6 +129,7 @@ namespace OSMTrafficSim
                 thisPed.WorldPos = newWorldPos;
                 thisPed.LocalPos = newLocalPos;
                 thisPed.GridId = newGridId;
+                RdGens[threadId] = threadRandom;
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -142,25 +156,32 @@ namespace OSMTrafficSim
         }
 
         [BurstCompile]
-        struct PedestrianStateTransitionJob : IJobProcessComponentData<PedestrianData, PedestrianState, InstanceRendererProperty>
+        struct PedestrianStateTransitionJob : IJobForEach<PedestrianData, PedestrianState, InstanceRendererProperty>
         {
-            public Random RdGen;
             public float DeltaTime;
             public PedestrianAnimStateConfig PedestrianAnimStateConfig;
 
+            #pragma warning disable CS0649 
+            [NativeSetThreadIndex]
+            int threadId;
+
+            [NativeDisableParallelForRestriction]
+            public NativeArray<Unity.Mathematics.Random> RdGens;
+
             public void Execute(ref PedestrianData data, ref PedestrianState state, ref InstanceRendererProperty property)
             {
+                var threadRandom = RdGens[threadId];
                 int currentState = state.State;
                 float cd = state.CoolDown - DeltaTime;
                 if (cd < 0)
                 {
-                    int nextstate = NextState(currentState);
+                    int nextstate = NextState(currentState, threadRandom);
 
                     property.Value = PedestrianAnimStateConfig.StateFrameRange[nextstate];
-                    state.CoolDown = RdGen.NextFloat(
+                    state.CoolDown = threadRandom.NextFloat(
                         PedestrianAnimStateConfig.DurationRange[nextstate].x,
                         PedestrianAnimStateConfig.DurationRange[nextstate].y);
-                    data.Speed = RdGen.NextFloat(
+                    data.Speed = threadRandom.NextFloat(
                         PedestrianAnimStateConfig.SpeedRange[nextstate].x,
                         PedestrianAnimStateConfig.SpeedRange[nextstate].y);
                 }
@@ -168,15 +189,16 @@ namespace OSMTrafficSim
                 {
                     state = new PedestrianState() {CoolDown = cd, State = currentState};
                 }
+                RdGens[threadId] = threadRandom;
             }
 
             //markov chain, sample from transition probability matrix
-            int NextState(int currentState)
+            int NextState(int currentState, Random randGen)
             {
                 int nextstate = 3;
                 float3 transitionPoss = PedestrianAnimStateConfig.TransitionProbability[currentState];
 
-                float randseed = RdGen.NextFloat();
+                float randseed = randGen.NextFloat();
                 if (randseed < transitionPoss.x)
                 {
                     nextstate = 0;
@@ -195,17 +217,14 @@ namespace OSMTrafficSim
         }
 
         [BurstCompile]
-        struct PedestrianMoveJob : IJobProcessComponentData<Position,Rotation,PedestrianData>
+        struct PedestrianMoveJob : IJobForEach<Translation,Rotation,PedestrianData>
         {
-            public void Execute([WriteOnly] ref Position position, [WriteOnly] ref Rotation rotation, [ReadOnly] ref PedestrianData data)
+            public void Execute([WriteOnly] ref Translation position, [WriteOnly] ref Rotation rotation, [ReadOnly] ref PedestrianData data)
             {
-                position = new Position() {Value = data.WorldPos};
+                position = new Translation() {Value = data.WorldPos};
                 rotation = new Rotation() { Value = quaternion.LookRotation(data.Forword, new float3(0,1,0))};
             }
         }
-
-        private NativeArray<WalkablePatch> _walkableArea;
-        private NativeArray<uint> _randSeed;
-        private PedestrianAnimStateConfig _pedestrianAnimStateConfig;
+        #endregion
     }
 }

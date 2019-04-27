@@ -16,24 +16,18 @@ using UnityEngine.Rendering;
 
 namespace OSMTrafficSim
 {
+    [UpdateInGroup(typeof(PresentationSystemGroup))]
     public class InstanceRenderingSystem : ComponentSystem
     {
         public Camera ActiveCamera;
         private NativeMultiHashMap<int, Entity> _batcher;
-        private EntityArchetypeQuery _query;
         private NativeArray<float> _cullDistance;
         private List<InstanceRendererData> _renderData;
         private InstanceRenderer _renderer;
+        private EntityQuery _queryGroup;
 
         protected override void OnCreateManager()
         {
-            _query = new EntityArchetypeQuery()
-            {
-                Any = Array.Empty<ComponentType>(),
-                None = Array.Empty<ComponentType>(),
-                All = new ComponentType[] { typeof(InstanceRendererData), typeof(InstanceRendererProperty), typeof(LocalToWorld) }
-            };
-
             _renderData = new List<InstanceRendererData>();
             EntityManager.GetAllUniqueSharedComponentData(_renderData);
             List<float> cullDistance = _renderData.ConvertAll( r => r.CullDistance);
@@ -43,6 +37,9 @@ namespace OSMTrafficSim
             _batcher = new NativeMultiHashMap<int, Entity>(10000, Allocator.Persistent);
 
             _renderer = new InstanceRenderer(EntityManager);
+
+            _queryGroup = EntityManager.CreateEntityQuery(typeof(InstanceRendererData),
+                typeof(InstanceRendererProperty), typeof(LocalToWorld));
         }
 
         protected override void OnDestroyManager()
@@ -64,7 +61,7 @@ namespace OSMTrafficSim
             //https://github.com/Unity-Technologies/EntityComponentSystemSamples/blob/8f94d72d1fd9b8db896646d9d533055917dc265a/Documentation/reference/chunk_iteration.md
             _batcher.Clear();
             UnityEngine.Profiling.Profiler.BeginSample("gather chunks");
-            NativeArray<ArchetypeChunk> chunks = EntityManager.CreateArchetypeChunkArray(_query, Allocator.TempJob);
+            NativeArray<ArchetypeChunk> chunks = _queryGroup.CreateArchetypeChunkArray(Allocator.TempJob);
             UnityEngine.Profiling.Profiler.EndSample();
             UnityEngine.Profiling.Profiler.BeginSample("start cull");
             var cullJob = new CullJob()

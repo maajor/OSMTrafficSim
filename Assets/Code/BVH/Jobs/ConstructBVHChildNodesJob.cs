@@ -8,7 +8,9 @@ namespace OSMTrafficSim.BVH
     [BurstCompile]
     struct ConstructBVHChildNodesJob : IJobParallelFor
     {
-        [ReadOnly] public ComponentDataArray<BVHAABB> AABB;
+        [ReadOnly]
+        [DeallocateOnJobCompletion]
+        public NativeArray<BVHAABB> AABB;
 
         [ReadOnly]
         [NativeDisableParallelForRestriction]

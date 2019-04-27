@@ -36,7 +36,7 @@ namespace OSMTrafficSim.BVH
         private NativeArray<int> parentIndex;
         private NativeArray<BVHAABB> bounds;
 
-        public JobHandle Calculate(JobHandle deps, ComponentDataArray<BVHAABB> AABB)
+        public JobHandle Calculate(JobHandle deps, NativeArray<BVHAABB> AABB)
         {
             var computeBound = new CalculateBoundsJob()
             {

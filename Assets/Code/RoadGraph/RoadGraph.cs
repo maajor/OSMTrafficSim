@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
@@ -193,9 +194,9 @@ namespace OSMTrafficSim
             speed /= 3.6f;//km/h to m/s;
         }
 #if UNITY_EDITOR
-        public ComponentDataArray<VehicleData> VehicleData;
-        public ComponentDataArray<HitResult> hit;
-        public ComponentDataArray<RoadNode> debugnodes;
+        public NativeArray<VehicleData> VehicleData;
+        public NativeArray<HitResult> hit;
+        public NativeArray<RoadNode> debugnodes;
         public void OnDrawGizmos()
         {
             if (!bDebug) return;

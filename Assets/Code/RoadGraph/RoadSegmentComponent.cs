@@ -24,12 +24,12 @@ namespace OSMTrafficSim
         public int NameHashcode;
     }
 
-    public class RoadSegmentComponent : ComponentDataWrapper<RoadNode>
+    public class RoadSegmentComponent : ComponentDataProxy<RoadNode>
     {
     }
-
+    /*
     public struct RoadSegmentGroup
     {
         public ComponentDataArray<RoadSegment> RoadSegments;
-    }
+    }*/
 }

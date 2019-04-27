@@ -18,7 +18,7 @@ namespace OSMTrafficSim.BVH
     [BurstCompile]
     struct ComputeMortonCodesJob : IJobParallelFor
     {
-        [ReadOnly] public ComponentDataArray<BVHAABB> aabbs;
+        [ReadOnly] public NativeArray<BVHAABB> aabbs;
         
         [WriteOnly]
         public NativeArray<uint> mortonCodes;

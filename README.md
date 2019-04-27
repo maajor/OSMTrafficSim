@@ -25,4 +25,4 @@ See My Blog [Unity ECS and Traffic Simulation | UnityECS架构与交通模拟](h
 System requirements
 -------------------
 
-- Unity 2018.3 or later
+- Unity 2019.1

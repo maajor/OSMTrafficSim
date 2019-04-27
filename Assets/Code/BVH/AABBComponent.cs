@@ -11,5 +11,5 @@ namespace OSMTrafficSim.BVH
         public float3 Max;
     }
 
-    public class AABBComponent : ComponentDataWrapper<BVHAABB> { }
+    public class AABBComponent : ComponentDataProxy<BVHAABB> { }
 }

@@ -21,7 +21,7 @@ namespace OSMTrafficSim.BVH
 
         [NativeDisableParallelForRestriction]
         [ReadOnly]
-        public ComponentDataArray<BVHAABB> AABB;
+        public NativeArray<BVHAABB> AABB;
 
         public int batchSize;
 
