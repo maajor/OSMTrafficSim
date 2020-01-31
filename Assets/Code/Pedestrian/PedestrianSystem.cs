@@ -19,7 +19,7 @@ namespace OSMTrafficSim
         private int _capacity = 1024;
 
         #region Component System Interface
-        protected override void OnCreateManager()
+        protected override void OnCreate()
         {
             _capacity = TrafficConfig.Instance.MaxPedestrian;
 
@@ -41,7 +41,7 @@ namespace OSMTrafficSim
             _pedestrianAnimStateConfig = TrafficConfig.Instance.PedestrianConfig.State;
 
         }
-        protected override void OnDestroyManager()
+        protected override void OnDestroy()
         {
             _walkableArea.Dispose();
             _rdGens.Dispose();
@@ -53,7 +53,7 @@ namespace OSMTrafficSim
                 WalkableArea = _walkableArea,
                 TexelSize = texelSize,
                 PatchResolution = patchResolution,
-                DeltaTime = Time.deltaTime,
+                DeltaTime = Time.DeltaTime,
                 RdGens = _rdGens
             };
 
@@ -62,7 +62,7 @@ namespace OSMTrafficSim
             var stateJob = new PedestrianStateTransitionJob()
             {
                 RdGens = _rdGens,
-                DeltaTime = Time.deltaTime,
+                DeltaTime = Time.DeltaTime,
                 PedestrianAnimStateConfig = _pedestrianAnimStateConfig
             };
             deps = stateJob.Schedule(this, deps);

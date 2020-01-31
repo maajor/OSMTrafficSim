@@ -11,7 +11,7 @@ namespace OSMTrafficSim
     [UpdateBefore(typeof(VehicleSystem))]
     public class TrafficLightSystem : JobComponentSystem
     {
-        protected override void OnCreateManager()
+        protected override void OnCreate()
         {
             var _roadNodeArchetype = EntityManager.CreateArchetype(typeof(RoadNode));
             var _roadSegmentArchetype = EntityManager.CreateArchetype(typeof(RoadSegment));
@@ -31,7 +31,7 @@ namespace OSMTrafficSim
         {
             var trafficLight = new TrafficLightJob()
             {
-                DeltaTime = Time.deltaTime
+                DeltaTime = Time.DeltaTime
             };
             return trafficLight.Schedule(this, deps);
         }

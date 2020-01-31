@@ -23,7 +23,7 @@ namespace OSMTrafficSim
         public ArchetypeChunkSharedComponentType<InstanceRendererData> RenderTypes;
         [ReadOnly]
         public ArchetypeChunkComponentType<LocalToWorld> LocalToWorldType;
-        public NativeMultiHashMap<int, Entity>.Concurrent Batcher;
+        public NativeMultiHashMap<int, Entity>.ParallelWriter Batcher;
         [ReadOnly]
         public NativeArray<float> CullDistance;
 

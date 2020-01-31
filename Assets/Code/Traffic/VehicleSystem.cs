@@ -17,7 +17,7 @@ namespace OSMTrafficSim
 
         #region ComponentSystem Interface
 
-        protected override void OnCreateManager()
+        protected override void OnCreate()
         {
             _capacity = TrafficConfig.Instance.MaxVehicles;
 
@@ -32,12 +32,38 @@ namespace OSMTrafficSim
             _BVH = new BVHConstructor(_capacity);
             _rdGens = Utils.GetRandomizerPerThread();
 
-            _vehicleGroup = EntityManager.CreateEntityQuery(typeof(VehicleData), typeof(BVHAABB), typeof(Translation),
-                typeof(Rotation), typeof(HitResult));
-            _roadSegmentGroup = EntityManager.CreateEntityQuery(typeof(RoadSegment));
-            _roadNodeGroup = EntityManager.CreateEntityQuery(typeof(RoadNode));
+            //_vehicleGroup = EntityManager.CreateEntityQuery(typeof(VehicleData), typeof(BVHAABB), typeof(Translation),
+            //    typeof(Rotation), typeof(HitResult));
+            _vehicleGroup = GetEntityQuery(new EntityQueryDesc()
+            {
+                All = new ComponentType[]
+                {
+                    ComponentType.ReadWrite<Translation>(),
+                    ComponentType.ReadWrite<Rotation>(),
+                    ComponentType.ReadWrite<VehicleData>(),
+                    ComponentType.ReadWrite<BVHAABB>(),
+                    ComponentType.ReadWrite<HitResult>()
+                },
+                Options = EntityQueryOptions.FilterWriteGroup
+            });
+            _roadSegmentGroup = GetEntityQuery(new EntityQueryDesc()
+            {
+                All = new ComponentType[]
+                {
+                    ComponentType.ReadOnly<RoadSegment>(),
+                },
+                Options = EntityQueryOptions.FilterWriteGroup
+            });
+            _roadNodeGroup = GetEntityQuery(new EntityQueryDesc()
+            {
+                All = new ComponentType[]
+                {
+                    ComponentType.ReadOnly<RoadNode>(),
+                },
+                Options = EntityQueryOptions.FilterWriteGroup
+            });
         }
-        protected override void OnDestroyManager()
+        protected override void OnDestroy()
         {
             _BVH.Dispose();
             _rdGens.Dispose();
@@ -75,11 +101,12 @@ namespace OSMTrafficSim
             {
                 RoadNodes = _roadNodeGroup.ToComponentDataArray<RoadNode>(Allocator.TempJob),
                 RoadSegments = _roadSegmentGroup.ToComponentDataArray<RoadSegment>(Allocator.TempJob),
-                FrameSeed = (uint)Time.frameCount,
-                DeltaTime = Time.deltaTime,
+                FrameSeed = (uint)UnityEngine.Time.frameCount,
+                DeltaTime = Time.DeltaTime,
                 BoundingBox = _bound,
                 RdGens = _rdGens
             }.Schedule(_vehicleGroup, deps);
+
             
             return deps;
         }

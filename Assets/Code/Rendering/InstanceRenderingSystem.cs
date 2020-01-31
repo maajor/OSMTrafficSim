@@ -26,7 +26,7 @@ namespace OSMTrafficSim
         private InstanceRenderer _renderer;
         private EntityQuery _queryGroup;
 
-        protected override void OnCreateManager()
+        protected override void OnCreate()
         {
             _renderData = new List<InstanceRendererData>();
             EntityManager.GetAllUniqueSharedComponentData(_renderData);
@@ -37,12 +37,20 @@ namespace OSMTrafficSim
             _batcher = new NativeMultiHashMap<int, Entity>(10000, Allocator.Persistent);
 
             _renderer = new InstanceRenderer(EntityManager);
-
-            _queryGroup = EntityManager.CreateEntityQuery(typeof(InstanceRendererData),
-                typeof(InstanceRendererProperty), typeof(LocalToWorld));
+            
+            _queryGroup = GetEntityQuery(new EntityQueryDesc()
+            {
+                All = new ComponentType[]
+                {
+                    ComponentType.ReadOnly<InstanceRendererData>(),
+                    ComponentType.ReadWrite<InstanceRendererProperty>(),
+                    ComponentType.ReadOnly<LocalToWorld>()
+                },
+                Options = EntityQueryOptions.FilterWriteGroup
+            });
         }
 
-        protected override void OnDestroyManager()
+        protected override void OnDestroy()
         {
             _cullDistance.Dispose();
             _batcher.Dispose();
@@ -70,7 +78,7 @@ namespace OSMTrafficSim
                 Chunks = chunks,
                 RenderTypes = GetArchetypeChunkSharedComponentType<InstanceRendererData>(),
                 LocalToWorldType = GetArchetypeChunkComponentType<LocalToWorld>(true),
-                Batcher = _batcher.ToConcurrent(),
+                Batcher = _batcher.AsParallelWriter(),
                 CamPos = ActiveCamera.transform.position,
                 CullDistance = _cullDistance
             };

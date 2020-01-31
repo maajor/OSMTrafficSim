@@ -4,6 +4,7 @@ using Unity.Entities;
 //using Unity.Rendering;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
+using UnityEngine.Rendering;
 
 namespace OSMTrafficSim
 {
@@ -12,9 +13,9 @@ namespace OSMTrafficSim
 
         InstanceRenderingSystem instanceRendererSystem;
 
-        protected override void OnCreateManager()
+        protected override void OnCreate()
         {
-            RenderPipeline.beginCameraRendering += OnBeforeCull;
+            RenderPipelineManager.beginCameraRendering += OnBeforeRenderPipelineCull;
             Camera.onPreCull += OnBeforeCull;
             instanceRendererSystem = this.World.GetOrCreateSystem<InstanceRenderingSystem>();
         }
@@ -23,6 +24,11 @@ namespace OSMTrafficSim
         {
         }
         
+        public void OnBeforeRenderPipelineCull(ScriptableRenderContext context, Camera camera)
+        {
+            OnBeforeCull(camera);
+        }
+
         public void OnBeforeCull(Camera camera)
         {
             instanceRendererSystem.ActiveCamera = camera;
