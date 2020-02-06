@@ -25,4 +25,4 @@ See My Blog [Unity ECS and Traffic Simulation | UnityECS架构与交通模拟](h
 System requirements
 -------------------
 
-- Unity 2019.1
+- Unity => [ProjectVersion.txt](https://github.com/maajor/OSMTrafficSim/blob/master/ProjectSettings/ProjectVersion.txt)
