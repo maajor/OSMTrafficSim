@@ -69,7 +69,7 @@ namespace OSMTrafficSim
             //https://github.com/Unity-Technologies/EntityComponentSystemSamples/blob/8f94d72d1fd9b8db896646d9d533055917dc265a/Documentation/reference/chunk_iteration.md
             _batcher.Clear();
             UnityEngine.Profiling.Profiler.BeginSample("gather chunks");
-            NativeArray<ArchetypeChunk> chunks = _queryGroup.CreateArchetypeChunkArray(Allocator.TempJob);
+            NativeArray<ArchetypeChunk> chunks = _queryGroup.ToArchetypeChunkArray(Allocator.TempJob);
             UnityEngine.Profiling.Profiler.EndSample();
             UnityEngine.Profiling.Profiler.BeginSample("start cull");
             var cullJob = new CullJob()

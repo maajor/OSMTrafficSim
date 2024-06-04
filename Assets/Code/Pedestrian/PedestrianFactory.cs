@@ -39,7 +39,7 @@ namespace OSMTrafficSim
             manager.SetComponentData(pedestrian, new PedestrianData(){ Forword = forward, LocalPos = localpos, Speed = speed, WorldPos = pos, GridId = gridid });
             manager.SetComponentData(pedestrian, new Translation() { Value = pos });
             manager.SetComponentData(pedestrian, new Rotation() { Value = rot });
-            manager.SetSharedComponentData(pedestrian, new InstanceRendererData()
+            manager.SetSharedComponentManaged(pedestrian, new InstanceRendererData()
             {
                 CastShadows = ShadowCastingMode.Off,
                 Material = TrafficConfig.Instance.PedestrianConfig.ManMat,

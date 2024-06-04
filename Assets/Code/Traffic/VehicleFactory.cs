@@ -98,7 +98,7 @@ namespace OSMTrafficSim
             manager.SetComponentData(car, new HitResult() { HitResultPacked = 0, FrontHitDistance = 50.0f });
             manager.SetComponentData(car, new BVHAABB() { Min = pos - _bounds[templateId], Max =  pos + _bounds[templateId] });
             manager.SetComponentData(car, new LocalToWorld() { Value = Matrix4x4.TRS(pos, rot, Vector3.one) });
-            manager.SetSharedComponentData(car, new RenderMesh()
+            manager.SetSharedComponentManaged(car, new RenderMesh()
             {
                 castShadows = ShadowCastingMode.Off,
                 material = _templateMaterial[templateId],
