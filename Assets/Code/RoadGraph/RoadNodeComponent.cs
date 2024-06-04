@@ -25,13 +25,4 @@ namespace OSMTrafficSim
             ActiveConnection = 0;
         }
     }
-
-    public class RoadNodeComponent : ComponentDataProxy<RoadNode>
-    {
-    }
-    /*
-    public struct RoadNodeGroup
-    {
-        public ComponentDataArray<RoadNode> RoadNodes;
-    }*/
 }

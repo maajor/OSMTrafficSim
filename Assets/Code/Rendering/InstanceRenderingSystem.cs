@@ -1,26 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
 using OSMTrafficSim.BVH;
-using Unity.Burst;
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 //using Unity.Rendering;
 using Unity.Transforms;
 using UnityEngine;
-using UnityEngine.Experimental.Animations;
-using UnityEngine.Playables;
-using UnityEngine.Rendering;
 
 namespace OSMTrafficSim
 {
     [UpdateInGroup(typeof(PresentationSystemGroup))]
-    public class InstanceRenderingSystem : ComponentSystem
+    public partial class InstanceRenderingSystem : SystemBase
     {
         public Camera ActiveCamera;
-        private NativeMultiHashMap<int, Entity> _batcher;
+        private NativeParallelMultiHashMap<int, Entity> _batcher;
         private NativeArray<float> _cullDistance;
         private List<InstanceRendererData> _renderData;
         private InstanceRenderer _renderer;
@@ -29,12 +24,12 @@ namespace OSMTrafficSim
         protected override void OnCreate()
         {
             _renderData = new List<InstanceRendererData>();
-            EntityManager.GetAllUniqueSharedComponentData(_renderData);
+            EntityManager.GetAllUniqueSharedComponentsManaged(_renderData);
             List<float> cullDistance = _renderData.ConvertAll( r => r.CullDistance);
             _cullDistance = new NativeArray<float>(cullDistance.ToArray(), Allocator.Persistent);
             _cullDistance.CopyFrom(cullDistance.ToArray());
 
-            _batcher = new NativeMultiHashMap<int, Entity>(10000, Allocator.Persistent);
+            _batcher = new NativeParallelMultiHashMap<int, Entity>(10000, Allocator.Persistent);
 
             _renderer = new InstanceRenderer(EntityManager);
             
@@ -59,6 +54,7 @@ namespace OSMTrafficSim
 
         protected override void OnUpdate()
         {
+            Tick();
         }
 
         public void Tick()
@@ -74,10 +70,10 @@ namespace OSMTrafficSim
             UnityEngine.Profiling.Profiler.BeginSample("start cull");
             var cullJob = new CullJob()
             {
-                EntityType = GetArchetypeChunkEntityType(),
+                EntityType = new EntityTypeHandle(),
                 Chunks = chunks,
-                RenderTypes = GetArchetypeChunkSharedComponentType<InstanceRendererData>(),
-                LocalToWorldType = GetArchetypeChunkComponentType<LocalToWorld>(true),
+                RenderTypes = new SharedComponentTypeHandle<InstanceRendererData>(),
+                LocalToWorldType = new ComponentTypeHandle<LocalToWorld>(),
                 Batcher = _batcher.AsParallelWriter(),
                 CamPos = ActiveCamera.transform.position,
                 CullDistance = _cullDistance
@@ -98,8 +94,7 @@ namespace OSMTrafficSim
                 if (_renderData[i].Material && _renderData[i].Mesh)
                 {
                     Entity ent;
-                    NativeMultiHashMapIterator<int> iterator;
-                    if (_batcher.TryGetFirstValue(i, out ent, out iterator))
+                    if (_batcher.TryGetFirstValue(i, out ent, out var iterator))
                     {
                         InstanceRendererProperty prop = EntityManager.GetComponentData<InstanceRendererProperty>(ent);
                         _renderer.Init(_renderData[i], prop);

@@ -15,15 +15,15 @@ namespace OSMTrafficSim
     struct CullJob : IJobParallelFor
     {
         [ReadOnly]
-        public ArchetypeChunkEntityType EntityType;
+        public EntityTypeHandle EntityType;
         [DeallocateOnJobCompletion]
         [ReadOnly]
         public NativeArray<ArchetypeChunk> Chunks;
         [ReadOnly]
-        public ArchetypeChunkSharedComponentType<InstanceRendererData> RenderTypes;
+        public SharedComponentTypeHandle<InstanceRendererData> RenderTypes;
         [ReadOnly]
-        public ArchetypeChunkComponentType<LocalToWorld> LocalToWorldType;
-        public NativeMultiHashMap<int, Entity>.ParallelWriter Batcher;
+        public ComponentTypeHandle<LocalToWorld> LocalToWorldType;
+        public NativeParallelMultiHashMap<int, Entity>.ParallelWriter Batcher;
         [ReadOnly]
         public NativeArray<float> CullDistance;
 
@@ -33,7 +33,7 @@ namespace OSMTrafficSim
         {
             int renderIndex = Chunks[index].GetSharedComponentIndex(RenderTypes);
             var entitiesSlice = Chunks[index].GetNativeArray(EntityType);
-            var localToWorldsSlice = Chunks[index].GetNativeArray(LocalToWorldType);
+            var localToWorldsSlice = Chunks[index].GetNativeArray(ref LocalToWorldType);
             for (int i = 0; i < localToWorldsSlice.Length; i++)
             {
                 if (math.distance(localToWorldsSlice[i].Value.c3.xyz, CamPos) < CullDistance[renderIndex])

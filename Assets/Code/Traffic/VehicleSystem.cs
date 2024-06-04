@@ -8,10 +8,11 @@ using Unity.Burst;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
 using Unity.Rendering;
+using Unity.Burst.Intrinsics;
 
 namespace OSMTrafficSim
 {
-    public class VehicleSystem : JobComponentSystem
+    public partial class VehicleSystem : SystemBase
     {
         private int _capacity = 1024;
 
@@ -38,8 +39,7 @@ namespace OSMTrafficSim
             {
                 All = new ComponentType[]
                 {
-                    ComponentType.ReadWrite<Translation>(),
-                    ComponentType.ReadWrite<Rotation>(),
+                    ComponentType.ReadWrite<LocalTransform>(),
                     ComponentType.ReadWrite<VehicleData>(),
                     ComponentType.ReadWrite<BVHAABB>(),
                     ComponentType.ReadWrite<HitResult>()
@@ -69,14 +69,14 @@ namespace OSMTrafficSim
             _rdGens.Dispose();
         }
 
-        protected override JobHandle OnUpdate(JobHandle deps)
+        protected override void OnUpdate()
         {
             //temp container, deallocated in jobs
             var vehicleAABB = _vehicleGroup.ToComponentDataArray<BVHAABB>(Allocator.TempJob);
             var vehicleData = _vehicleGroup.ToComponentDataArray<VehicleData>(Allocator.TempJob);
             var vehicleHitresultTemp = _vehicleGroup.ToComponentDataArray<HitResult>(Allocator.TempJob);
 
-            deps = _BVH.Calculate(deps, vehicleAABB);
+            var deps = _BVH.Calculate(deps: default, vehicleAABB);
 
             //Sense surrounding vehicles, write to vehicleHitResultTemp, the writing limit exceed chunk, so write to a temp first.
             deps = new SenseEnvironmentJob()
@@ -87,14 +87,17 @@ namespace OSMTrafficSim
                 HalfBVHArrayLength = _BVH.BVHArray.Length / 2,
             }.Schedule(_capacity, 64, deps);
 
-            var hitResults = GetArchetypeChunkComponentType<HitResult>(false);
+            var hitResults = new ComponentTypeHandle<HitResult>();
 
+            NativeArray<int> chunkBaseEntityIndices = _vehicleGroup.CalculateBaseEntityIndexArrayAsync(
+                Allocator.TempJob, deps, out JobHandle baseIndexJobHandle);
             //need to access entity id and write with id, dispatch a chunkjob
             deps = new WriteSenseResultJob()
             {
+                ChunkBaseEntityIndices = chunkBaseEntityIndices,
                 HitResultTemp = vehicleHitresultTemp,
                 HitResult = hitResults
-            }.Schedule(_vehicleGroup, deps);
+            }.Schedule(_vehicleGroup, baseIndexJobHandle);
 
             //move according to sense result
             deps = new VehicleMoveJob()
@@ -102,13 +105,12 @@ namespace OSMTrafficSim
                 RoadNodes = _roadNodeGroup.ToComponentDataArray<RoadNode>(Allocator.TempJob),
                 RoadSegments = _roadSegmentGroup.ToComponentDataArray<RoadSegment>(Allocator.TempJob),
                 FrameSeed = (uint)UnityEngine.Time.frameCount,
-                DeltaTime = Time.DeltaTime,
+                DeltaTime = World.Time.DeltaTime,
                 BoundingBox = _bound,
                 RdGens = _rdGens
             }.Schedule(_vehicleGroup, deps);
 
             
-            return deps;
         }
         #endregion
 
@@ -124,7 +126,7 @@ namespace OSMTrafficSim
         #region Jobs In This System
         //place the job in system, otherwise debugger cannot find entities.
         [BurstCompile]
-        struct VehicleMoveJob : IJobForEach<HitResult, Translation, Rotation, VehicleData, BVHAABB>
+        partial struct VehicleMoveJob : IJobEntity//IJobForEach<HitResult, Translation, Rotation, VehicleData, BVHAABB>
         {
             public float DeltaTime;
             public uint FrameSeed;
@@ -147,12 +149,12 @@ namespace OSMTrafficSim
             [NativeDisableParallelForRestriction]
             public NativeArray<Unity.Mathematics.Random> RdGens;
 
-            public unsafe void Execute(ref HitResult thisHitResult, ref Translation translation, ref Rotation rotation, ref VehicleData vehicleData, ref BVHAABB bvhAabb)
+            public unsafe void Execute(ref HitResult thisHitResult, ref LocalTransform transform, ref VehicleData vehicleData, ref BVHAABB bvhAabb)
             {
                 var threadRandom = RdGens[threadId];
 
-                float3 currentPos = translation.Value;
-                float3 currentDir = vehicleData.Forward;
+                float3 currentPos = transform.Position;
+                float3 currentDir = transform.Forward();
 
                 int laneCount, nextLane;
                 //spawn new pos
@@ -194,8 +196,8 @@ namespace OSMTrafficSim
                     newAABB.Min += (nextPos - currentPos);
                     bvhAabb = newAABB;
 
-                    translation = new Translation() { Value = nextPos };
-                    rotation = new Rotation() { Value = newRot };
+                    transform.Position = nextPos;
+                    transform.Rotation = newRot;
                     return;
                 }
 
@@ -280,7 +282,7 @@ namespace OSMTrafficSim
                     newAABB.Min += currentDir * stepLength;
                     bvhAabb = newAABB;
 
-                    translation = new Translation() { Value = nextPos };
+                    transform.Position = nextPos;
                 }
                 //reach end node, find next seg
                 else
@@ -349,8 +351,8 @@ namespace OSMTrafficSim
                     newAABB.Min += (nextPos - currentPos);
                     bvhAabb = newAABB;
 
-                    translation = new Translation() { Value = nextPos };
-                    rotation = new Rotation() { Value = newRot };
+                    transform.Position = nextPos;
+                    transform.Rotation = newRot;
 
                     UnsafeUtility.Free(_availableSeg, Allocator.Temp);
                     RdGens[threadId] = threadRandom;
@@ -362,19 +364,36 @@ namespace OSMTrafficSim
         [BurstCompile]
         struct WriteSenseResultJob : IJobChunk
         {
+            [ReadOnly][DeallocateOnJobCompletion] public NativeArray<int> ChunkBaseEntityIndices;
+
             [NativeDisableParallelForRestriction]
             [DeallocateOnJobCompletion]
             public NativeArray<HitResult> HitResultTemp;
 
-            public ArchetypeChunkComponentType<HitResult> HitResult;
+            public ComponentTypeHandle<HitResult> HitResult;
 
-            public void Execute(ArchetypeChunk chunk, int chunkIndex, int firstEntityIndex)
+            //public void Execute(in ArchetypeChunk chunk, int chunkIndex, int firstEntityIndex)
+            //{
+            //    var hitResultChunk = chunk.GetNativeArray(ref HitResult);
+            //    for (var i = 0; i < chunk.Count; i++)
+            //    {
+            //        var globalId = firstEntityIndex + i;
+            //        hitResultChunk[i] = HitResultTemp[globalId];
+            //    }
+            //}
+
+            public void Execute(in ArchetypeChunk chunk, int unfilteredChunkIndex, bool useEnabledMask, in v128 chunkEnabledMask)
             {
-                var hitResultChunk = chunk.GetNativeArray(HitResult);
-                for (var i = 0; i < chunk.Count; i++)
+                int baseEntityIndex = ChunkBaseEntityIndices[unfilteredChunkIndex];
+                int validEntitiesInChunk = 0;
+                var enumerator = new ChunkEntityEnumerator(useEnabledMask,
+                    chunkEnabledMask, chunk.Count);
+                var hitResultChunk = chunk.GetNativeArray(ref HitResult);
+                while (enumerator.NextEntityIndex(out int i))
                 {
-                    var globalId = firstEntityIndex + i;
-                    hitResultChunk[i] = HitResultTemp[globalId];
+                    int entityIndexInQuery = baseEntityIndex + validEntitiesInChunk;
+                    hitResultChunk[i] = HitResultTemp[entityIndexInQuery];
+                    ++validEntitiesInChunk;
                 }
             }
         }

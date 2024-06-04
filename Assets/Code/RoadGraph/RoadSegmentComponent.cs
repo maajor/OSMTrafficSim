@@ -23,13 +23,4 @@ namespace OSMTrafficSim
         public float MaxSpeed;
         public int NameHashcode;
     }
-
-    public class RoadSegmentComponent : ComponentDataProxy<RoadNode>
-    {
-    }
-    /*
-    public struct RoadSegmentGroup
-    {
-        public ComponentDataArray<RoadSegment> RoadSegments;
-    }*/
 }

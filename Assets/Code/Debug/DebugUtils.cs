@@ -32,14 +32,14 @@ namespace OSMTrafficSim
             Debug.DrawLine(new Vector3(aabb.Min.x, aabb.Max.y, aabb.Max.z), new Vector3(aabb.Min.x, aabb.Max.y, aabb.Min.z), color);
         }
 
-        public static void DebugConnection(NativeArray<Translation> pos, NativeArray<HitResult> hitresult)
+        public static void DebugConnection(NativeArray<LocalTransform> pos, NativeArray<HitResult> hitresult)
         {
             for (int i = 0; i < pos.Length; i++)
             {
                 int frontid = hitresult[i].FrontEntityId;
                 if (frontid != 0)
                 {
-                    Debug.DrawLine(pos[i].Value, pos[frontid].Value);
+                    Debug.DrawLine(pos[i].Position, pos[frontid].Position);
                 }
             }
         }

@@ -30,12 +30,5 @@ namespace OSMTrafficSim
             this.HitDistAhead = hitDistAhead;
         }
     }
-    
-    public class VehicleComponent : ComponentDataProxy<VehicleData> {
 
-        public VehicleComponent(uint id, int currentid, float speed, float3 direction, float segpos, float dir, float3 position, int lane, float hitDistAhead) {
-            Value = new VehicleData(id, currentid, speed, direction, segpos, dir, position, lane, hitDistAhead);
-        }
-        
-    }
 }

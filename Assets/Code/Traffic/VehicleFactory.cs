@@ -23,7 +23,7 @@ namespace OSMTrafficSim
 
         public static void Init(EntityManager manager)
         {
-            _vehicleArchetype = manager.CreateArchetype(typeof(VehicleData), typeof(Translation), typeof(Rotation),
+            _vehicleArchetype = manager.CreateArchetype(typeof(VehicleData), typeof(LocalTransform),
                 typeof(HitResult), typeof(RenderMesh), typeof(BVHAABB), typeof(LocalToWorld));
             _vehicleCount = 0;
 
@@ -93,17 +93,14 @@ namespace OSMTrafficSim
             var car = manager.CreateEntity(_vehicleArchetype);
             
             manager.SetComponentData(car, new VehicleData((uint)_vehicleCount, currentid, speed, forward, lerpPos, dir, pos, lane, 50.0f));
-            manager.SetComponentData(car, new Translation() { Value = pos });
-            manager.SetComponentData(car, new Rotation() { Value = rot });
+            manager.SetComponentData(car, new LocalTransform() { Position = pos, Rotation = rot, Scale = 1});
             manager.SetComponentData(car, new HitResult() { HitResultPacked = 0, FrontHitDistance = 50.0f });
             manager.SetComponentData(car, new BVHAABB() { Min = pos - _bounds[templateId], Max =  pos + _bounds[templateId] });
             manager.SetComponentData(car, new LocalToWorld() { Value = Matrix4x4.TRS(pos, rot, Vector3.one) });
             manager.SetSharedComponentManaged(car, new RenderMesh()
             {
-                castShadows = ShadowCastingMode.Off,
                 material = _templateMaterial[templateId],
                 mesh = _templateMesh[templateId],
-                receiveShadows = false,
                 subMesh = 0
             });
 

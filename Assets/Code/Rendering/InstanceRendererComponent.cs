@@ -47,8 +47,4 @@ namespace OSMTrafficSim
             return hash;
         }
     }
-
-    public class InstanceRendererComponent : SharedComponentDataProxy<InstanceRendererData>
-    {
-    }
 }
