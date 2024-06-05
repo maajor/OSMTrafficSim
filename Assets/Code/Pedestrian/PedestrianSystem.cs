@@ -48,6 +48,7 @@ namespace OSMTrafficSim
         }
         public override void Update()
         {
+            return;
             new PedestrianMoveCheckJob()
             {
                 WalkableArea = _walkableArea,

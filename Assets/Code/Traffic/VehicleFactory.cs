@@ -61,17 +61,6 @@ namespace OSMTrafficSim
             }
         }
 
-        public static Entity AddVehicle(EntityManager manager, string name)
-        {
-            throw new NotImplementedException();
-            /*int templateId;
-            if (_templateNameId.TryGetValue(name, out templateId))
-            {
-
-            }
-            return Entity.Null;*/
-        }
-
         public static Entity AddVehicle(EntityManager manager)
         {
             float3 pos, forward; quaternion rot;
@@ -89,20 +78,25 @@ namespace OSMTrafficSim
                 }
             }
             
-            //here is 2018.2 ways, should be using GameObjectConversionSystem in 2019.1?
             var car = manager.CreateEntity(_vehicleArchetype);
-            
+
+            var desc = new RenderMeshDescription(
+                shadowCastingMode: ShadowCastingMode.Off,
+                receiveShadows: false);
+
+            var renderMeshArray = new RenderMeshArray(new Material[] { _templateMaterial[templateId] }, new Mesh[] { _templateMesh[templateId] });
+
+            RenderMeshUtility.AddComponents(
+                car,
+                manager,
+                desc,
+                renderMeshArray,
+                MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0));
             manager.SetComponentData(car, new VehicleData((uint)_vehicleCount, currentid, speed, forward, lerpPos, dir, pos, lane, 50.0f));
             manager.SetComponentData(car, new LocalTransform() { Position = pos, Rotation = rot, Scale = 1});
             manager.SetComponentData(car, new HitResult() { HitResultPacked = 0, FrontHitDistance = 50.0f });
             manager.SetComponentData(car, new BVHAABB() { Min = pos - _bounds[templateId], Max =  pos + _bounds[templateId] });
             manager.SetComponentData(car, new LocalToWorld() { Value = Matrix4x4.TRS(pos, rot, Vector3.one) });
-            manager.SetSharedComponentManaged(car, new RenderMesh()
-            {
-                material = _templateMaterial[templateId],
-                mesh = _templateMesh[templateId],
-                subMesh = 0
-            });
 
             _vehicleCount++;
             return car;

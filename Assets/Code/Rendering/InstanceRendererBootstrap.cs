@@ -16,6 +16,7 @@ namespace OSMTrafficSim
 
         protected override void OnCreate()
         {
+            return;
             RenderPipelineManager.beginCameraRendering += OnBeforeRenderPipelineCull;
             Camera.onPreCull += OnBeforeCull;
             instanceRendererSystem = World.GetOrCreateSystemManaged<InstanceRenderingSystem>();
@@ -27,11 +28,13 @@ namespace OSMTrafficSim
         
         public void OnBeforeRenderPipelineCull(ScriptableRenderContext context, Camera camera)
         {
+            return;
             OnBeforeCull(camera);
         }
 
         public void OnBeforeCull(Camera camera)
         {
+            return;
             instanceRendererSystem.ActiveCamera = camera;
             instanceRendererSystem.Tick();
             instanceRendererSystem.ActiveCamera = null;

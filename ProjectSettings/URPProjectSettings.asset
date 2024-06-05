@@ -9,8 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e2ea235c1fcfe29488ed97c467a0da53, type: 3}
+  m_Script: {fileID: 11500000, guid: 247994e1f5a72c2419c26a37e9334c01, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  FilterSettings:
-    ExcludedBakingSystemAssemblies: []
+  m_LastMaterialVersion: 7

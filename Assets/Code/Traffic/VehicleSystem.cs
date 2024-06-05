@@ -12,8 +12,7 @@ using Unity.Burst.Intrinsics;
 
 namespace OSMTrafficSim
 {
-    [UpdateAfter(typeof(LocalToWorldSystem))]
-    public partial class VehicleSystem : ComponentSystemBase
+    public partial class VehicleSystem : SystemBase
     {
         private int _capacity = 1024;
 
@@ -70,14 +69,16 @@ namespace OSMTrafficSim
             _rdGens.Dispose();
         }
 
-        public override void Update()
+        protected override void OnUpdate()
         {
             //temp container, deallocated in jobs
             var vehicleAABB = _vehicleGroup.ToComponentDataArray<BVHAABB>(Allocator.TempJob);
             var vehicleData = _vehicleGroup.ToComponentDataArray<VehicleData>(Allocator.TempJob);
             var vehicleHitresultTemp = _vehicleGroup.ToComponentDataArray<HitResult>(Allocator.TempJob);
 
-            var deps = _BVH.Calculate(deps: default, vehicleAABB);
+            var dependency = Dependency;
+
+            var deps = _BVH.Calculate(deps: dependency, vehicleAABB);
 
             //Sense surrounding vehicles, write to vehicleHitResultTemp, the writing limit exceed chunk, so write to a temp first.
             deps = new SenseEnvironmentJob()
@@ -87,7 +88,7 @@ namespace OSMTrafficSim
                 HitResult = vehicleHitresultTemp,
                 HalfBVHArrayLength = _BVH.BVHArray.Length / 2,
             }.Schedule(_capacity, 64, deps);
-
+            
             var hitResults = GetComponentTypeHandle<HitResult>(false);
 
             NativeArray<int> chunkBaseEntityIndices = _vehicleGroup.CalculateBaseEntityIndexArrayAsync(
@@ -111,7 +112,7 @@ namespace OSMTrafficSim
                 RdGens = _rdGens
             }.Schedule(_vehicleGroup, deps);
 
-            
+            Dependency = deps;
         }
         #endregion
 
