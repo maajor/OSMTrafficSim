@@ -23,7 +23,7 @@ namespace OSMTrafficSim
             {
                 if (_instance == null)
                 {
-                    _instance = GameObject.FindObjectOfType<PedestrianArea>();
+                    _instance = GameObject.FindFirstObjectByType<PedestrianArea>(FindObjectsInactive.Include);
                 }
                 return _instance;
             }

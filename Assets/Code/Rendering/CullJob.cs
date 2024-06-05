@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace OSMTrafficSim
 {
-    [BurstCompile]
+    // [BurstCompile]
     struct CullJob : IJobParallelFor
     {
         [ReadOnly]
@@ -36,7 +36,7 @@ namespace OSMTrafficSim
             var localToWorldsSlice = Chunks[index].GetNativeArray(ref LocalToWorldType);
             for (int i = 0; i < localToWorldsSlice.Length; i++)
             {
-                if (math.distance(localToWorldsSlice[i].Value.c3.xyz, CamPos) < CullDistance[renderIndex])
+                if (math.distance(localToWorldsSlice[i].Value.c3.xyz, CamPos) < 500)
                 {
                     Batcher.Add(renderIndex, entitiesSlice[i]);
                 }

@@ -12,7 +12,8 @@ using Unity.Burst.Intrinsics;
 
 namespace OSMTrafficSim
 {
-    public partial class VehicleSystem : SystemBase
+    [UpdateAfter(typeof(LocalToWorldSystem))]
+    public partial class VehicleSystem : ComponentSystemBase
     {
         private int _capacity = 1024;
 
@@ -69,7 +70,7 @@ namespace OSMTrafficSim
             _rdGens.Dispose();
         }
 
-        protected override void OnUpdate()
+        public override void Update()
         {
             //temp container, deallocated in jobs
             var vehicleAABB = _vehicleGroup.ToComponentDataArray<BVHAABB>(Allocator.TempJob);
@@ -87,7 +88,7 @@ namespace OSMTrafficSim
                 HalfBVHArrayLength = _BVH.BVHArray.Length / 2,
             }.Schedule(_capacity, 64, deps);
 
-            var hitResults = new ComponentTypeHandle<HitResult>();
+            var hitResults = GetComponentTypeHandle<HitResult>(false);
 
             NativeArray<int> chunkBaseEntityIndices = _vehicleGroup.CalculateBaseEntityIndexArrayAsync(
                 Allocator.TempJob, deps, out JobHandle baseIndexJobHandle);
@@ -97,7 +98,7 @@ namespace OSMTrafficSim
                 ChunkBaseEntityIndices = chunkBaseEntityIndices,
                 HitResultTemp = vehicleHitresultTemp,
                 HitResult = hitResults
-            }.Schedule(_vehicleGroup, baseIndexJobHandle);
+            }.Schedule(_vehicleGroup, JobHandle.CombineDependencies(deps, baseIndexJobHandle));
 
             //move according to sense result
             deps = new VehicleMoveJob()

@@ -15,7 +15,7 @@ namespace OSMTrafficSim
         public static RoadGraph Instance {
             get {
                 if (_instance == null) {
-                    _instance = GameObject.FindObjectOfType<RoadGraph>();
+                    _instance = GameObject.FindFirstObjectByType<RoadGraph>(FindObjectsInactive.Include);
                 }
                 return _instance;
             }

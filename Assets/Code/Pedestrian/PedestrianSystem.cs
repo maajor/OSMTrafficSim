@@ -13,8 +13,8 @@ using WalkablePatch = System.UInt64;
 
 namespace OSMTrafficSim
 {
-
-    public partial class PedestrianSystem : SystemBase
+    [UpdateAfter(typeof(LocalToWorldSystem))]
+    public partial class PedestrianSystem : ComponentSystemBase
     {
         private int _capacity = 1024;
 
@@ -46,19 +46,17 @@ namespace OSMTrafficSim
             _walkableArea.Dispose();
             _rdGens.Dispose();
         }
-        protected override void OnUpdate()
+        public override void Update()
         {
-            var senseJob = new PedestrianMoveCheckJob()
+            new PedestrianMoveCheckJob()
             {
                 WalkableArea = _walkableArea,
                 TexelSize = texelSize,
                 PatchResolution = patchResolution,
                 DeltaTime = World.Time.DeltaTime,
                 RdGens = _rdGens
-            };
+            }.ScheduleParallel();
 
-            var handle = senseJob.Schedule(dependsOn: default);
-            
             var stateJob = new PedestrianStateTransitionJob()
             {
                 RdGens = _rdGens,
@@ -66,11 +64,11 @@ namespace OSMTrafficSim
                 PedestrianAnimStateConfig = _pedestrianAnimStateConfig
             };
 
-            handle = stateJob.Schedule(handle);
+            stateJob.ScheduleParallel();
 
             var moveJob = new PedestrianMoveJob();
             
-            moveJob.Schedule(handle);
+            moveJob.ScheduleParallel();
             
         }
         #endregion

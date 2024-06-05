@@ -11,6 +11,7 @@ using UnityEngine;
 
 namespace OSMTrafficSim
 {
+    [CreateAfter(typeof(PedestrianSystem))]
     [UpdateInGroup(typeof(PresentationSystemGroup))]
     public partial class InstanceRenderingSystem : SystemBase
     {
@@ -24,7 +25,7 @@ namespace OSMTrafficSim
         protected override void OnCreate()
         {
             _renderData = new List<InstanceRendererData>();
-            EntityManager.GetAllUniqueSharedComponentsManaged(_renderData);
+            EntityManager.GetAllUniqueSharedComponentsManaged<InstanceRendererData>(_renderData);
             List<float> cullDistance = _renderData.ConvertAll( r => r.CullDistance);
             _cullDistance = new NativeArray<float>(cullDistance.ToArray(), Allocator.Persistent);
             _cullDistance.CopyFrom(cullDistance.ToArray());
@@ -54,12 +55,12 @@ namespace OSMTrafficSim
 
         protected override void OnUpdate()
         {
-            Tick();
         }
 
         public void Tick()
         {
             if (ActiveCamera == null || !_batcher.IsCreated) return;
+
             //share component id can only be visited by architypechunks, 
             //so we iterate over architypechunks here
             //https://github.com/Unity-Technologies/EntityComponentSystemSamples/blob/8f94d72d1fd9b8db896646d9d533055917dc265a/Documentation/reference/chunk_iteration.md
@@ -70,10 +71,10 @@ namespace OSMTrafficSim
             UnityEngine.Profiling.Profiler.BeginSample("start cull");
             var cullJob = new CullJob()
             {
-                EntityType = new EntityTypeHandle(),
+                EntityType = GetEntityTypeHandle(),
                 Chunks = chunks,
-                RenderTypes = new SharedComponentTypeHandle<InstanceRendererData>(),
-                LocalToWorldType = new ComponentTypeHandle<LocalToWorld>(),
+                RenderTypes = GetSharedComponentTypeHandle<InstanceRendererData>(),
+                LocalToWorldType = GetComponentTypeHandle<LocalToWorld>(),
                 Batcher = _batcher.AsParallelWriter(),
                 CamPos = ActiveCamera.transform.position,
                 CullDistance = _cullDistance
