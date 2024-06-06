@@ -106,6 +106,7 @@ public class InstanceRenderPassFeature : ScriptableRendererFeature
             context.ExecuteCommandBuffer(_commandBuffer);
             _commandBuffer.Clear();
             CommandBufferPool.Release(_commandBuffer);
+            shaderId = Shader.PropertyToID("_FrameRange");
         }
 
         public void Render()
