@@ -59,32 +59,37 @@ namespace OSMTrafficSim
 
         public void Tick()
         {
-            if (ActiveCamera == null || !_batcher.IsCreated) return;
-
-            //share component id can only be visited by architypechunks, 
-            //so we iterate over architypechunks here
-            //https://github.com/Unity-Technologies/EntityComponentSystemSamples/blob/8f94d72d1fd9b8db896646d9d533055917dc265a/Documentation/reference/chunk_iteration.md
-            _batcher.Clear();
-            UnityEngine.Profiling.Profiler.BeginSample("gather chunks");
-            NativeArray<ArchetypeChunk> chunks = _queryGroup.ToArchetypeChunkArray(Allocator.TempJob);
-            UnityEngine.Profiling.Profiler.EndSample();
-            UnityEngine.Profiling.Profiler.BeginSample("start cull");
-            var cullJob = new CullJob()
-            {
-                EntityType = GetEntityTypeHandle(),
-                Chunks = chunks,
-                RenderTypes = GetSharedComponentTypeHandle<InstanceRendererData>(),
-                LocalToWorldType = GetComponentTypeHandle<LocalToWorld>(),
-                Batcher = _batcher.AsParallelWriter(),
-                CamPos = ActiveCamera.transform.position,
-                CullDistance = _cullDistance
-            };
-            var deps = cullJob.Schedule(chunks.Length, 1);
-            deps.Complete();
-            UnityEngine.Profiling.Profiler.EndSample();
-            UnityEngine.Profiling.Profiler.BeginSample("start render");
-            Render();
-            UnityEngine.Profiling.Profiler.EndSample();
+            //if (ActiveCamera == null || !_batcher.IsCreated) return;
+            //var dep = Dependency;
+            ////share component id can only be visited by architypechunks, 
+            ////so we iterate over architypechunks here
+            ////https://github.com/Unity-Technologies/EntityComponentSystemSamples/blob/8f94d72d1fd9b8db896646d9d533055917dc265a/Documentation/reference/chunk_iteration.md
+            //_batcher.Clear();
+            //UnityEngine.Profiling.Profiler.BeginSample("gather chunks");
+            //NativeArray<ArchetypeChunk> chunks = _queryGroup.ToArchetypeChunkArray(Allocator.TempJob);
+            //UnityEngine.Profiling.Profiler.EndSample();
+            //UnityEngine.Profiling.Profiler.BeginSample("start cull");
+            //var cullJob = new CullJob()
+            //{
+            //    EntityType = GetEntityTypeHandle(),
+            //    Chunks = chunks,
+            //    RenderTypes = GetSharedComponentTypeHandle<InstanceRendererData>(),
+            //    LocalToWorldType = GetComponentTypeHandle<LocalToWorld>(),
+            //    Batcher = _batcher.AsParallelWriter(),
+            //    CamPos = ActiveCamera.transform.position,
+            //    CullDistance = _cullDistance
+            //};
+            //dep = cullJob.Schedule(chunks.Length, 1, dep);
+            //dep.Complete();
+            //if (_batcher.Count() > 0)
+            //{
+            //    Debug.Log("Has batch");
+            //}
+            //UnityEngine.Profiling.Profiler.EndSample();
+            //UnityEngine.Profiling.Profiler.BeginSample("start render");
+            //Render();
+            //UnityEngine.Profiling.Profiler.EndSample();
+            //Dependency = dep;
         }
 
         public void Render()
