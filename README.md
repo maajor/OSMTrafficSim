@@ -7,6 +7,12 @@ OSMTrafficSim
 ![gif](Recordings/gif_animation_005.gif)
 ![gif](Recordings/gif_animation_007.gif)
 
+### Update 2024-06-06
+- Update to Unity 2023.1.20
+- Update to Entities 1.0.6
+- Update to URP
+
+# Introduction
 **OSMTrafficSim** is project to simulate city traffic. 
 
 Taking advantage of Unity's recent [Entity-Componet-System](https://github.com/Unity-Technologies/EntityComponentSystemSamples) technology, this project exploits the protential of multi-core processors, simulating 25k cars, 10k pedestrian at 30fps on my laptop.
@@ -22,7 +28,6 @@ Road's abstract graph is also generated using OpenStreetMap data, an example dat
 
 See My Blog [Unity ECS and Traffic Simulation | UnityECS架构与交通模拟](http://ma-yidong.com/2018/11/04/unity-ecs-and-traffic-simulation/) and [Unity ECS, Swarm Animation And Markov Chain| ECS集群动画与马尔可夫链](http://ma-yidong.com/2018/11/24/unity-ecs-swarm-animation-and-markov-chain/)for more detail
 
-System requirements
--------------------
+# System requirements
 
-- Unity => [ProjectVersion.txt](https://github.com/maajor/OSMTrafficSim/blob/master/ProjectSettings/ProjectVersion.txt)
+- Unity 2023.1.20

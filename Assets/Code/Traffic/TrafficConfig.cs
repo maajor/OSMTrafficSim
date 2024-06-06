@@ -22,7 +22,7 @@ namespace OSMTrafficSim
             {
                 if (_instance == null)
                 {
-                    _instance = GameObject.FindObjectOfType<TrafficConfig>();
+                    _instance = GameObject.FindFirstObjectByType<TrafficConfig>(FindObjectsInactive.Include);
                 }
 
                 return _instance;

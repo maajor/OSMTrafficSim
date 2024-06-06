@@ -9,7 +9,7 @@ using UnityEngine;
 namespace OSMTrafficSim
 {
     [UpdateBefore(typeof(VehicleSystem))]
-    public class TrafficLightSystem : JobComponentSystem
+    public partial class TrafficLightSystem : SystemBase
     {
         protected override void OnCreate()
         {
@@ -27,17 +27,17 @@ namespace OSMTrafficSim
             }
         }
 
-        protected override JobHandle OnUpdate(JobHandle deps)
+        protected override void OnUpdate()
         {
             var trafficLight = new TrafficLightJob()
             {
-                DeltaTime = Time.DeltaTime
+                DeltaTime = World.Time.DeltaTime
             };
-            return trafficLight.Schedule(this, deps);
+            trafficLight.Schedule();
         }
         
         [BurstCompile]
-        public struct TrafficLightJob : IJobForEach<RoadNode>
+        public partial struct TrafficLightJob : IJobEntity//IJobForEach<RoadNode>
         {
             public float DeltaTime;
 

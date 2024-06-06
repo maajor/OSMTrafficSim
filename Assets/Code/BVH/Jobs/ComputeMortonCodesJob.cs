@@ -1,16 +1,7 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Runtime.CompilerServices;
-using System.Threading;
-using Unity.Entities;
-using Unity.Mathematics;
+﻿using Unity.Mathematics;
 using Unity.Burst;
 using Unity.Collections;
-using Unity.Collections.Experimental;
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
-using UnityEngine;
 
 namespace OSMTrafficSim.BVH
 {

@@ -13,8 +13,7 @@ using WalkablePatch = System.UInt64;
 
 namespace OSMTrafficSim
 {
-
-    public class PedestrianSystem : JobComponentSystem
+    public partial class PedestrianSystem : SystemBase
     {
         private int _capacity = 1024;
 
@@ -46,31 +45,33 @@ namespace OSMTrafficSim
             _walkableArea.Dispose();
             _rdGens.Dispose();
         }
-        protected override JobHandle OnUpdate(JobHandle deps)
+        protected override void OnUpdate()
         {
-            var senseJob = new PedestrianMoveCheckJob()
+            var dep = Dependency;
+            dep = new PedestrianMoveCheckJob()
             {
                 WalkableArea = _walkableArea,
                 TexelSize = texelSize,
                 PatchResolution = patchResolution,
-                DeltaTime = Time.DeltaTime,
+                DeltaTime = World.Time.DeltaTime,
                 RdGens = _rdGens
-            };
+            }.ScheduleParallel(dep);
 
-            deps = senseJob.Schedule(this, deps);
-            
             var stateJob = new PedestrianStateTransitionJob()
             {
                 RdGens = _rdGens,
-                DeltaTime = Time.DeltaTime,
+                DeltaTime = World.Time.DeltaTime,
                 PedestrianAnimStateConfig = _pedestrianAnimStateConfig
             };
-            deps = stateJob.Schedule(this, deps);
+
+            dep = stateJob.ScheduleParallel(dep);
 
             var moveJob = new PedestrianMoveJob();
-            deps = moveJob.Schedule(this,deps);
             
-            return deps;
+            dep = moveJob.ScheduleParallel(dep);
+
+            Dependency = dep;
+
         }
         #endregion
 
@@ -83,8 +84,9 @@ namespace OSMTrafficSim
         #endregion
 
         #region Jobs In This System
+
         [BurstCompile]
-        struct PedestrianMoveCheckJob : IJobForEach<PedestrianData>
+        partial struct PedestrianMoveCheckJob : IJobEntity//<PedestrianData>
         {
             public float DeltaTime;
 
@@ -156,7 +158,7 @@ namespace OSMTrafficSim
         }
 
         [BurstCompile]
-        struct PedestrianStateTransitionJob : IJobForEach<PedestrianData, PedestrianState, InstanceRendererProperty>
+        partial struct PedestrianStateTransitionJob : IJobEntity //IJobForEach<PedestrianData, PedestrianState, InstanceRendererProperty>
         {
             public float DeltaTime;
             public PedestrianAnimStateConfig PedestrianAnimStateConfig;
@@ -217,12 +219,12 @@ namespace OSMTrafficSim
         }
 
         [BurstCompile]
-        struct PedestrianMoveJob : IJobForEach<Translation,Rotation,PedestrianData>
+        partial struct PedestrianMoveJob : IJobEntity//IJobForEach<Translation,Rotation,PedestrianData>
         {
-            public void Execute([WriteOnly] ref Translation position, [WriteOnly] ref Rotation rotation, [ReadOnly] ref PedestrianData data)
+            public void Execute([WriteOnly] ref LocalTransform transform, [ReadOnly] ref PedestrianData data)
             {
-                position = new Translation() {Value = data.WorldPos};
-                rotation = new Rotation() { Value = quaternion.LookRotation(data.Forword, new float3(0,1,0))};
+                transform.Position = data.WorldPos;
+                transform.Rotation = quaternion.LookRotation(data.Forword, new float3(0, 1, 0));
             }
         }
         #endregion

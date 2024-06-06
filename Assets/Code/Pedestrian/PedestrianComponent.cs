@@ -17,18 +17,10 @@ namespace OSMTrafficSim
         public int2 GridId;
     }
 
-    public class PedestrianComponent : ComponentDataProxy<PedestrianData>
-    {
-    }
-
     [Serializable]
     public struct PedestrianState : IComponentData
     {
         public int State;
         public float CoolDown;
-    }
-
-    public class PedestrianStateComponent : ComponentDataProxy<PedestrianState>
-    {
     }
 }
