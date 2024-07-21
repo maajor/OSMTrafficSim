@@ -20,6 +20,7 @@ namespace OSMTrafficSim
         #region Component System Interface
         protected override void OnCreate()
         {
+            if (!TrafficConfig.Instance.EnablePedestrian) return;
             _capacity = TrafficConfig.Instance.MaxPedestrian;
 
             PedestrianFactory.Init(EntityManager);

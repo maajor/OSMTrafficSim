@@ -46,11 +46,32 @@ namespace OSMTrafficSim
             _instance = this;
         }
 
+        private void GuessSetOrigin(GeoJson rawData)
+        {
+            var minPos = new Vector2(float.MaxValue, float.MaxValue);
+            foreach (var feature in rawData.features)
+            {
+                int len = feature.geometry.coordinates.Length;
+                //add nodes
+                for (int i = 0; i < len / 2; i++)
+                {
+                    if (feature.geometry.coordinates[i, 0] < minPos.x || feature.geometry.coordinates[i, 1] < minPos.y)
+                    {
+                        minPos = new Vector2(math.min(feature.geometry.coordinates[i, 0], minPos.x), math.min(feature.geometry.coordinates[i, 1], minPos.y));
+                    }
+                }
+            }
+
+            RefCenter = minPos;
+        }
+
         public void Init(GeoJson rawData) {
+            GuessSetOrigin(rawData);
             List<List<int>> nodeConnects = new List<List<int>>();
             Dictionary<Vector2Int, RoadNode> nodeDic = new Dictionary<Vector2Int, RoadNode>();
             roadNodes = new List<RoadNode>();
             roadSegments = new List<RoadSegment>();
+            BoundingBox = new Bounds(Vector3.zero, Vector3.zero);
             //iterate over each road
             foreach (var feature in rawData.features)
             {
@@ -64,6 +85,9 @@ namespace OSMTrafficSim
                         feature.geometry.coordinates[i, 0],
                         feature.geometry.coordinates[i, 1]);
                     Vector2 worldPos = Conversion.GeoToWorldPosition(latlongPos, RefCenter);
+                    // TODO: Raycast and get road height
+
+                    BoundingBox.Encapsulate(new Vector3(worldPos.x, 0, worldPos.y));
                     Vector2Int intpos = new Vector2Int((int)worldPos.x, (int)worldPos.y);
                     if (!uniqueNodes.Contains(intpos))
                     {
