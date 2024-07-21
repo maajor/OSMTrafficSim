@@ -7,6 +7,11 @@ OSMTrafficSim
 ![gif](Recordings/gif_animation_005.gif)
 ![gif](Recordings/gif_animation_007.gif)
 
+### Update 2024-07-21
+
+Special Thanks to [OJ(ALTV)](https://www.youtube.com/@ALTV_YouTube)!  
+Now we can load different maps from the world!
+
 ### Update 2024-06-06
 - Update to Unity 2023.1.20
 - Update to Entities 1.0.6
