@@ -46,7 +46,7 @@ namespace OSMTrafficSim
             _instance = this;
         }
 
-        private void GuessSetOrigin(GeoJson rawData)
+        public Vector2 GuessOrigin(GeoJson rawData)
         {
             var minPos = new Vector2(float.MaxValue, float.MaxValue);
             foreach (var feature in rawData.features)
@@ -61,12 +61,12 @@ namespace OSMTrafficSim
                     }
                 }
             }
-
-            RefCenter = minPos;
+            
+            return minPos;
         }
 
-        public void Init(GeoJson rawData) {
-            GuessSetOrigin(rawData);
+        public void Init(GeoJson rawData, Vector2 origin, float scale = 1.0f) {
+            RefCenter = origin;
             List<List<int>> nodeConnects = new List<List<int>>();
             Dictionary<Vector2Int, RoadNode> nodeDic = new Dictionary<Vector2Int, RoadNode>();
             roadNodes = new List<RoadNode>();
@@ -84,10 +84,13 @@ namespace OSMTrafficSim
                     Vector2 latlongPos = new Vector2(
                         feature.geometry.coordinates[i, 0],
                         feature.geometry.coordinates[i, 1]);
-                    Vector2 worldPos = Conversion.GeoToWorldPosition(latlongPos, RefCenter);
-                    // TODO: Raycast and get road height
-
-                    BoundingBox.Encapsulate(new Vector3(worldPos.x, 0, worldPos.y));
+                    Vector2 worldPos = Conversion.GeoToWorldPosition(latlongPos, RefCenter, scale);
+                    float height = 0;
+                    if (Physics.Raycast(new Ray(new Vector3(worldPos.x, 10000, worldPos.y), Vector3.down), out var hitInfo))
+                    {
+                        height = hitInfo.point.y;
+                    }
+                    BoundingBox.Encapsulate(new Vector3(worldPos.x, height, worldPos.y));
                     Vector2Int intpos = new Vector2Int((int)worldPos.x, (int)worldPos.y);
                     if (!uniqueNodes.Contains(intpos))
                     {
@@ -101,7 +104,7 @@ namespace OSMTrafficSim
                     if (!nodeDic.TryGetValue(intpos, out node))
                     {
                         node = new RoadNode(RoadNodes.Count);
-                        node.Position = new float3(){ x = worldPos.x, y = 0, z = worldPos.y};
+                        node.Position = new float3(){ x = worldPos.x, y = height, z = worldPos.y};
                         nodeDic.Add(intpos, node);
                         RoadNodes.Add(node);
                         nodeConnects.Add(new List<int>());
