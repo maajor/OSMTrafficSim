@@ -11,6 +11,11 @@ namespace OSMTrafficSim
     [UpdateBefore(typeof(VehicleSystem))]
     public partial class TrafficLightSystem : SystemBase
     {
+        public void Restart()
+        {
+            OnDestroy();
+            OnCreate();
+        }
         protected override void OnCreate()
         {
             var _roadNodeArchetype = EntityManager.CreateArchetype(typeof(RoadNode));

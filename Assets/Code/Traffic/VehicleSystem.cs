@@ -16,6 +16,12 @@ namespace OSMTrafficSim
     {
         private int _capacity = 1024;
 
+        public void Restart()
+        {
+            OnDestroy();
+            OnCreate();
+        }
+
         #region ComponentSystem Interface
 
         protected override void OnCreate()
