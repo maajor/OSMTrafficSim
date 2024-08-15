@@ -4,6 +4,7 @@ using Newtonsoft.Json;
 using OSMTrafficSim;
 using TMPro;
 using Unity.Entities;
+using Unity.Mathematics;
 using UnityEngine;
 
 public class LoadSceneUi : MonoBehaviour
@@ -107,14 +108,45 @@ public class LoadSceneUi : MonoBehaviour
 
     private void RestartSystems()
     {
+        StopTrafficSystem();
+        StartTrafficSystem();
+    }
+
+    public void StopTrafficSystem()
+    {
         World world = World.DefaultGameObjectInjectionWorld;
         EntityManager entityManager = world.EntityManager;
+        TrafficLightSystem lightSystem = world.GetExistingSystemManaged<TrafficLightSystem>();
+        lightSystem.Pause();
+        VehicleSystem vehicleSystem = world.GetExistingSystemManaged<VehicleSystem>();
+        vehicleSystem.Pause();
         entityManager.DestroyEntity(entityManager.UniversalQuery);
+    }
 
+    public void StartTrafficSystem()
+    {
+        World world = World.DefaultGameObjectInjectionWorld;
         TrafficLightSystem lightSystem = world.GetExistingSystemManaged<TrafficLightSystem>();
         lightSystem.Restart();
         VehicleSystem vehicleSystem = world.GetExistingSystemManaged<VehicleSystem>();
         vehicleSystem.Restart();
+    }
+
+    public void ToggleTrafficSystem(bool toggle)
+    {
+        if (toggle)
+        {
+            StartTrafficSystem();
+        }
+        else
+        {
+            StopTrafficSystem();
+        }
+    }
+
+    public void FitHeight()
+    {
+        RoadGraph.FitHeight();
     }
 }
 

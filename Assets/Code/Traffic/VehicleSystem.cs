@@ -15,7 +15,11 @@ namespace OSMTrafficSim
     public partial class VehicleSystem : SystemBase
     {
         private int _capacity = 1024;
-
+        private bool running = true;
+        public void Pause()
+        {
+            running = false;
+        }
         public void Restart()
         {
             OnDestroy();
@@ -68,6 +72,7 @@ namespace OSMTrafficSim
                 },
                 Options = EntityQueryOptions.FilterWriteGroup
             });
+            running = true;
         }
         protected override void OnDestroy()
         {
@@ -77,6 +82,8 @@ namespace OSMTrafficSim
 
         protected override void OnUpdate()
         {
+            if (!running) return;
+            _bound = RoadGraph.Instance.BoundingBox;
             //temp container, deallocated in jobs
             var vehicleAABB = _vehicleGroup.ToComponentDataArray<BVHAABB>(Allocator.TempJob);
             var vehicleData = _vehicleGroup.ToComponentDataArray<VehicleData>(Allocator.TempJob);

@@ -2,6 +2,7 @@
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Transforms;
 using UnityEngine;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -176,6 +177,73 @@ namespace OSMTrafficSim
                 }
 
                 RoadNodes[i] = nd;
+            }
+        }
+
+        /// <summary>
+        /// Fit Road and Vehicles to Height,
+        /// Before do this, make sure you scene have colliders, say
+        ///  '''
+        ///  MeshCollider meshCollider = terrainGameObject.AddComponent<MeshCollider>();
+        ///  meshCollider.sharedMesh = terrainGameObject.GetComponent<MeshFilter>().sharedMesh;
+        ///  '''
+        /// </summary>
+        public void FitHeight()
+        {
+            for (int i = 0; i < roadNodes.Count; i++)
+            {
+                var roadNode = roadNodes[i];
+                Ray ray = new Ray(roadNode.Position + new float3(0, 10000, 0), Vector3.down);
+                if (Physics.Raycast(ray, out RaycastHit hit))
+                {
+                    roadNode.Position = hit.point;
+                    BoundingBox.Encapsulate(roadNode.Position);
+                }
+            }
+
+            var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
+            var roadNodeQuery = World.DefaultGameObjectInjectionWorld.EntityManager.CreateEntityQuery(typeof(RoadNode));
+
+            // Get all entities with the RoadNode component
+            using (var entities = roadNodeQuery.ToEntityArray(Unity.Collections.Allocator.TempJob))
+            {
+                foreach (var entity in entities)
+                {
+                    // Get the RoadNode component from the entity
+                    RoadNode roadNode = entityManager.GetComponentData<RoadNode>(entity);
+
+                    // Perform a raycast downwards to find the new height
+                    Ray ray = new Ray(roadNode.Position + new float3(0, 10000, 0), Vector3.down);
+                    if (Physics.Raycast(ray, out RaycastHit hit))
+                    {
+                        // Update the y-coordinate of RoadNode's Position
+                        roadNode.Position.y = hit.point.y;
+                        // Set the updated RoadNode component back to the entity
+                        entityManager.SetComponentData(entity, roadNode);
+                    }
+                }
+            }
+
+            var vehicleQuery = World.DefaultGameObjectInjectionWorld.EntityManager.CreateEntityQuery(typeof(LocalTransform), typeof(VehicleData));
+
+            // Get all entities with the RoadNode component
+            using (var entities = vehicleQuery.ToEntityArray(Unity.Collections.Allocator.TempJob))
+            {
+                foreach (var entity in entities)
+                {
+                    // Get the RoadNode component from the entity
+                    LocalTransform trs = entityManager.GetComponentData<LocalTransform>(entity);
+
+                    // Perform a raycast downwards to find the new height
+                    Ray ray = new Ray(trs.Position + new float3(0, 10000, 0), Vector3.down);
+                    if (Physics.Raycast(ray, out RaycastHit hit))
+                    {
+                        // Update the y-coordinate of RoadNode's Position
+                        trs.Position.y = hit.point.y;
+                        // Set the updated RoadNode component back to the entity
+                        entityManager.SetComponentData(entity, trs);
+                    }
+                }
             }
         }
 
