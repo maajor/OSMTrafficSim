@@ -35,7 +35,7 @@ namespace OSMTrafficSim
             LatLonToMeters(refPoint, out x2, out y2);
             x1 -= x2;
             y1 -= y2;
-            return new Vector2((float)x1, (float)y1);
+            return new Vector2((float)x1 * scale, (float)y1 * scale);
         }
     }
 }

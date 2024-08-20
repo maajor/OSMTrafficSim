@@ -2,6 +2,7 @@
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Transforms;
 using UnityEngine;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -46,11 +47,32 @@ namespace OSMTrafficSim
             _instance = this;
         }
 
-        public void Init(GeoJson rawData) {
+        public Vector2 GuessOrigin(GeoJson rawData)
+        {
+            var minPos = new Vector2(float.MaxValue, float.MaxValue);
+            foreach (var feature in rawData.features)
+            {
+                int len = feature.geometry.coordinates.Length;
+                //add nodes
+                for (int i = 0; i < len / 2; i++)
+                {
+                    if (feature.geometry.coordinates[i, 0] < minPos.x || feature.geometry.coordinates[i, 1] < minPos.y)
+                    {
+                        minPos = new Vector2(math.min(feature.geometry.coordinates[i, 0], minPos.x), math.min(feature.geometry.coordinates[i, 1], minPos.y));
+                    }
+                }
+            }
+            
+            return minPos;
+        }
+
+        public void Init(GeoJson rawData, Vector2 origin, float scale = 1.0f) {
+            RefCenter = origin;
             List<List<int>> nodeConnects = new List<List<int>>();
             Dictionary<Vector2Int, RoadNode> nodeDic = new Dictionary<Vector2Int, RoadNode>();
             roadNodes = new List<RoadNode>();
             roadSegments = new List<RoadSegment>();
+            BoundingBox = new Bounds(Vector3.zero, Vector3.zero);
             //iterate over each road
             foreach (var feature in rawData.features)
             {
@@ -63,7 +85,13 @@ namespace OSMTrafficSim
                     Vector2 latlongPos = new Vector2(
                         feature.geometry.coordinates[i, 0],
                         feature.geometry.coordinates[i, 1]);
-                    Vector2 worldPos = Conversion.GeoToWorldPosition(latlongPos, RefCenter);
+                    Vector2 worldPos = Conversion.GeoToWorldPosition(latlongPos, RefCenter, scale);
+                    float height = 0;
+                    if (Physics.Raycast(new Ray(new Vector3(worldPos.x, 10000, worldPos.y), Vector3.down), out var hitInfo))
+                    {
+                        height = hitInfo.point.y;
+                    }
+                    BoundingBox.Encapsulate(new Vector3(worldPos.x, height, worldPos.y));
                     Vector2Int intpos = new Vector2Int((int)worldPos.x, (int)worldPos.y);
                     if (!uniqueNodes.Contains(intpos))
                     {
@@ -77,7 +105,7 @@ namespace OSMTrafficSim
                     if (!nodeDic.TryGetValue(intpos, out node))
                     {
                         node = new RoadNode(RoadNodes.Count);
-                        node.Position = new float3(){ x = worldPos.x, y = 0, z = worldPos.y};
+                        node.Position = new float3(){ x = worldPos.x, y = height, z = worldPos.y};
                         nodeDic.Add(intpos, node);
                         RoadNodes.Add(node);
                         nodeConnects.Add(new List<int>());
@@ -149,6 +177,73 @@ namespace OSMTrafficSim
                 }
 
                 RoadNodes[i] = nd;
+            }
+        }
+
+        /// <summary>
+        /// Fit Road and Vehicles to Height,
+        /// Before do this, make sure you scene have colliders, say
+        ///  '''
+        ///  MeshCollider meshCollider = terrainGameObject.AddComponent<MeshCollider>();
+        ///  meshCollider.sharedMesh = terrainGameObject.GetComponent<MeshFilter>().sharedMesh;
+        ///  '''
+        /// </summary>
+        public void FitHeight()
+        {
+            for (int i = 0; i < roadNodes.Count; i++)
+            {
+                var roadNode = roadNodes[i];
+                Ray ray = new Ray(roadNode.Position + new float3(0, 10000, 0), Vector3.down);
+                if (Physics.Raycast(ray, out RaycastHit hit))
+                {
+                    roadNode.Position = hit.point;
+                    BoundingBox.Encapsulate(roadNode.Position);
+                }
+            }
+
+            var entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
+            var roadNodeQuery = World.DefaultGameObjectInjectionWorld.EntityManager.CreateEntityQuery(typeof(RoadNode));
+
+            // Get all entities with the RoadNode component
+            using (var entities = roadNodeQuery.ToEntityArray(Unity.Collections.Allocator.TempJob))
+            {
+                foreach (var entity in entities)
+                {
+                    // Get the RoadNode component from the entity
+                    RoadNode roadNode = entityManager.GetComponentData<RoadNode>(entity);
+
+                    // Perform a raycast downwards to find the new height
+                    Ray ray = new Ray(roadNode.Position + new float3(0, 10000, 0), Vector3.down);
+                    if (Physics.Raycast(ray, out RaycastHit hit))
+                    {
+                        // Update the y-coordinate of RoadNode's Position
+                        roadNode.Position.y = hit.point.y;
+                        // Set the updated RoadNode component back to the entity
+                        entityManager.SetComponentData(entity, roadNode);
+                    }
+                }
+            }
+
+            var vehicleQuery = World.DefaultGameObjectInjectionWorld.EntityManager.CreateEntityQuery(typeof(LocalTransform), typeof(VehicleData));
+
+            // Get all entities with the RoadNode component
+            using (var entities = vehicleQuery.ToEntityArray(Unity.Collections.Allocator.TempJob))
+            {
+                foreach (var entity in entities)
+                {
+                    // Get the RoadNode component from the entity
+                    LocalTransform trs = entityManager.GetComponentData<LocalTransform>(entity);
+
+                    // Perform a raycast downwards to find the new height
+                    Ray ray = new Ray(trs.Position + new float3(0, 10000, 0), Vector3.down);
+                    if (Physics.Raycast(ray, out RaycastHit hit))
+                    {
+                        // Update the y-coordinate of RoadNode's Position
+                        trs.Position.y = hit.point.y;
+                        // Set the updated RoadNode component back to the entity
+                        entityManager.SetComponentData(entity, trs);
+                    }
+                }
             }
         }
 

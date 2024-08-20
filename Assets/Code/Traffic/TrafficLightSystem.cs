@@ -11,6 +11,16 @@ namespace OSMTrafficSim
     [UpdateBefore(typeof(VehicleSystem))]
     public partial class TrafficLightSystem : SystemBase
     {
+        private bool running = true;
+        public void Pause()
+        {
+            running = false;
+        }
+        public void Restart()
+        {
+            OnDestroy();
+            OnCreate();
+        }
         protected override void OnCreate()
         {
             var _roadNodeArchetype = EntityManager.CreateArchetype(typeof(RoadNode));
@@ -25,10 +35,13 @@ namespace OSMTrafficSim
                 var entity = EntityManager.CreateEntity(_roadSegmentArchetype);
                 EntityManager.SetComponentData(entity, segs);
             }
+
+            running = true;
         }
 
         protected override void OnUpdate()
         {
+            if (!running) return;
             var trafficLight = new TrafficLightJob()
             {
                 DeltaTime = World.Time.DeltaTime

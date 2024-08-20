@@ -24,7 +24,8 @@ namespace OSMTrafficSim
             if (!filePath.EndsWith("geojson")) return;
             string text = System.IO.File.ReadAllText(filePath);
             GeoJson rawData = JsonConvert.DeserializeObject<GeoJson>(text);
-            RoadGraph.Instance.Init(rawData);
+            var origin = RoadGraph.Instance.GuessOrigin(rawData);
+            RoadGraph.Instance.Init(rawData, origin);
         }
     }
 

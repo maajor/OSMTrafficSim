@@ -36,6 +36,7 @@ namespace OSMTrafficSim
 
         public int MaxVehicles = 1024;
         public List<VehicleTemplate> Templates;
+        public bool EnablePedestrian = true;
         public int MaxPedestrian = 1024;
         public PedestrianConfig PedestrianConfig;
 
