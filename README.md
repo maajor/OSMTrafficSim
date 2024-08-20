@@ -1,16 +1,18 @@
 OSMTrafficSim
 ========
+| | |
+|:-------------------------:|:-------------------------:|
+|![gif](Recordings/gif_animation_001.gif) |  ![gif](Recordings/gif_animation_002.gif) |
+|![gif](Recordings/gif_animation_003.gif) | ![gif](Recordings/gif_animation_005.gif) |
 
-![gif](Recordings/gif_animation_001.gif)
-![gif](Recordings/gif_animation_002.gif)
-![gif](Recordings/gif_animation_003.gif)
-![gif](Recordings/gif_animation_005.gif)
-![gif](Recordings/gif_animation_007.gif)
+### Update 2024-08-20
 
-### Update 2024-07-21
-
-Special Thanks to [OJ(ALTV)](https://www.youtube.com/@ALTV_YouTube)!  
-Now we can load different maps from the world!
+Special Thanks to [OJ](https://www.youtube.com/@ALTV_YouTube)!  OSMTrafficSim is integrated into [Airport Live Traffic Viewer](https://www.youtube.com/watch?v=EWjyzTjmCLY).
+And now we can load different maps from the world!, Try open Assets/Scenes/LoadMap.unity and Run it!
+| | |
+|:-------------------------:|:-------------------------:|
+|![guangzhou](Recordings/gz.jpg)|  ![rio](Recordings/rio.jpg)|
+|![seattle](Recordings/seattle.jpg) | ![vienna](Recordings/vienna.jpg)|
 
 ### Update 2024-06-06
 - Update to Unity 2023.1.20
